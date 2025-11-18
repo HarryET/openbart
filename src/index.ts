@@ -27,7 +27,7 @@ export default {
   fetch: app.fetch,
   queue: queueHandler,
   async scheduled(event, env, ctx): Promise<void> {
-    env.SYNC_PROVIDER_QUEUE.sendBatch(
+    await env.SYNC_PROVIDER_QUEUE.sendBatch(
       Object.keys(PROVIDER_CONFIG).map((p) => ({ body: p })),
     );
   },
