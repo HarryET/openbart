@@ -43,7 +43,7 @@ export const queueHandler: ExportedHandlerQueueHandler<
             gtfsRealtimeVersion: feed.header.gtfsRealtimeVersion || "2.0",
             incrementality: feed.header.incrementality || 0,
             ...(feed.header.feedVersion && { feedVersion: feed.header.feedVersion }),
-            rawFeed: buffer.toString(),
+            rawFeed: Buffer.from(buffer).toString('base64'),
             entitiesCount: feed.entity.length,
           })
           .returning();

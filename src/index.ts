@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/cloudflare-workers";
 import { queueHandler } from "./queue";
 import { PROVIDER_CONFIG } from "./providers";
 import { tripUpdatesHandler } from "./handlers/trip-updates";
@@ -9,22 +8,14 @@ import { departuresHandler } from "./handlers/departures";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-app.get("/", (c) => {
-  return c.json({
-    message: "OpenBART GTFS RealTime API",
-    endpoints: [
-      "GET /:provider/trip-updates?at=<ISO8601>",
-      "GET /:provider/vehicle-positions?at=<ISO8601>",
-      "GET /:provider/alerts?at=<ISO8601>",
-      "GET /:provider/departures/:station/:platform?at=<ISO8601>",
-      "GET /display/:station - Dot matrix display view",
-    ],
-    providers: Object.keys(PROVIDER_CONFIG),
-  });
+app.get("/", async (c) => {
+  return c.env.ASSETS.fetch(new Request("https://placeholder/index.html"));
 });
 
 // Dot matrix display page
-app.get("/display/:station", serveStatic({ path: "./display.html" }));
+app.get("/display/:station", async (c) => {
+  return c.env.ASSETS.fetch(new Request("https://placeholder/display.html"));
+});
 
 // API endpoints
 app.get("/:provider/trip-updates", tripUpdatesHandler);
