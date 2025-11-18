@@ -155,30 +155,36 @@ export const queueHandler: ExportedHandlerQueueHandler<
 
                       // Insert arrival StopTimeEvent
                       if (stu.arrival) {
-                        await db.insert(stopTimeEvents).values({
-                          stopTimeUpdateId: stopTimeUpdate.id,
-                          type: 0, // arrival
-                          delay: stu.arrival.delay ?? undefined,
-                          time: stu.arrival.time
-                            ? new Date(Number(stu.arrival.time) * 1000)
-                            : undefined,
-                          uncertainty: stu.arrival.uncertainty ?? undefined,
-                          scheduledTime: undefined,
-                        });
+                        await db
+                          .insert(stopTimeEvents)
+                          .values({
+                            stopTimeUpdateId: stopTimeUpdate.id,
+                            type: 0, // arrival
+                            delay: stu.arrival.delay ?? undefined,
+                            time: stu.arrival.time
+                              ? new Date(Number(stu.arrival.time) * 1000)
+                              : undefined,
+                            uncertainty: stu.arrival.uncertainty ?? undefined,
+                            scheduledTime: undefined,
+                          })
+                          .onConflictDoNothing();
                       }
 
                       // Insert departure StopTimeEvent
                       if (stu.departure) {
-                        await db.insert(stopTimeEvents).values({
-                          stopTimeUpdateId: stopTimeUpdate.id,
-                          type: 1, // departure
-                          delay: stu.departure.delay ?? undefined,
-                          time: stu.departure.time
-                            ? new Date(Number(stu.departure.time) * 1000)
-                            : undefined,
-                          uncertainty: stu.departure.uncertainty ?? undefined,
-                          scheduledTime: undefined,
-                        });
+                        await db
+                          .insert(stopTimeEvents)
+                          .values({
+                            stopTimeUpdateId: stopTimeUpdate.id,
+                            type: 1, // departure
+                            delay: stu.departure.delay ?? undefined,
+                            time: stu.departure.time
+                              ? new Date(Number(stu.departure.time) * 1000)
+                              : undefined,
+                            uncertainty: stu.departure.uncertainty ?? undefined,
+                            scheduledTime: undefined,
+                          })
+                          .onConflictDoNothing();
                       }
                     }
                   }
