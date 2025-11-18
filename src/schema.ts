@@ -107,10 +107,6 @@ export const tripUpdates = sqliteTable(
   },
   (table) => ({
     providerIdx: index("trip_updates_provider_idx").on(table.providerId),
-    entityUnique: uniqueIndex("trip_updates_entity_unique").on(
-      table.providerId,
-      table.entityId,
-    ),
   }),
 );
 
@@ -145,10 +141,6 @@ export const vehiclePositions = sqliteTable(
   },
   (table) => ({
     providerIdx: index("vehicle_positions_provider_idx").on(table.providerId),
-    entityUnique: uniqueIndex("vehicle_positions_entity_unique").on(
-      table.providerId,
-      table.entityId,
-    ),
   }),
 );
 
@@ -193,10 +185,6 @@ export const alerts = sqliteTable(
   },
   (table) => ({
     providerIdx: index("alerts_provider_idx").on(table.providerId),
-    entityUnique: uniqueIndex("alerts_entity_unique").on(
-      table.providerId,
-      table.entityId,
-    ),
   }),
 );
 
