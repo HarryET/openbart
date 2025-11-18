@@ -27,8 +27,41 @@ export default {
   fetch: app.fetch,
   queue: queueHandler,
   async scheduled(event, env, ctx): Promise<void> {
-    await env.SYNC_PROVIDER_QUEUE.sendBatch(
-      Object.keys(PROVIDER_CONFIG).map((p) => ({ body: p })),
-    );
+    // Fetch all feeds and queue the raw data for processing
+    const messages = [];
+
+    for (const [providerId, config] of Object.entries(PROVIDER_CONFIG)) {
+      const urls = [
+        { url: config.tripupdates_url, type: "trip_updates" },
+        { url: config.alerts_url, type: "alerts" },
+      ];
+
+      for (const { url, type } of urls) {
+        try {
+          const response = await fetch(url, { headers: config.headers });
+          if (!response.ok) {
+            console.error(`Failed to fetch ${type} for ${providerId}: ${response.status}`);
+            continue;
+          }
+
+          const buffer = await response.arrayBuffer();
+
+          messages.push({
+            body: JSON.stringify({
+              providerId,
+              type,
+              rawFeed: Array.from(new Uint8Array(buffer)),
+              fetchedAt: Date.now(),
+            }),
+          });
+        } catch (error) {
+          console.error(`Error fetching ${type} for ${providerId}:`, error);
+        }
+      }
+    }
+
+    if (messages.length > 0) {
+      await env.SYNC_PROVIDER_QUEUE.sendBatch(messages);
+    }
   },
 } satisfies ExportedHandler<CloudflareBindings, string>;
