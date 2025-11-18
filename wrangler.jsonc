@@ -28,6 +28,12 @@
       "migrations_dir": "./migrations",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "PROTOBUF_BUCKET",
+      "bucket_name": "openbart-protobuf-bucket",
+    },
+  ],
   "queues": {
     "producers": [
       {

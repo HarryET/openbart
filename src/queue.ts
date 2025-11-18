@@ -43,10 +43,24 @@ export const queueHandler: ExportedHandlerQueueHandler<
             gtfsRealtimeVersion: feed.header.gtfsRealtimeVersion || "2.0",
             incrementality: feed.header.incrementality || 0,
             ...(feed.header.feedVersion && { feedVersion: feed.header.feedVersion }),
-            rawFeed: Buffer.from(buffer).toString('base64'),
             entitiesCount: feed.entity.length,
           })
           .returning();
+
+        // Store raw protobuf in R2
+        await env.PROTOBUF_BUCKET.put(
+          `${providerId}/${snapshot.id}.pb`,
+          buffer,
+          {
+            httpMetadata: {
+              contentType: "application/x-protobuf",
+            },
+            customMetadata: {
+              feedTimestamp: feed.header.timestamp?.toString() || "",
+              entitiesCount: feed.entity.length.toString(),
+            },
+          }
+        );
 
         // Process entities
         for (const entity of feed.entity) {

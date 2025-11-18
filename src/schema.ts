@@ -36,7 +36,6 @@ export const snapshots = sqliteTable(
     gtfsRealtimeVersion: text("gtfs_realtime_version").notNull(), // e.g., '2.0'
     incrementality: integer("incrementality").notNull().default(0), // Enum: 0=FULL_DATASET, 1=DIFFERENTIAL
     feedVersion: text("feed_version"), // Optional
-    rawFeed: text("raw_feed"), // Optional: Base64 or hex-encoded protobuf blob for debugging
     entitiesCount: integer("entities_count").default(0), // Computed: number of entities in this snapshot
   },
   (table) => ({
