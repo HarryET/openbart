@@ -69,4 +69,3 @@ CREATE TABLE `trips` (
 --> statement-breakpoint
 CREATE INDEX `trips_provider_idx` ON `trips` (`provider_id`);--> statement-breakpoint
 CREATE INDEX `trips_route_idx` ON `trips` (`provider_id`,`route_id`);--> statement-breakpoint
-ALTER TABLE `entities` DROP COLUMN `id`;
