@@ -43,6 +43,13 @@
       "when": 1763451779552,
       "tag": "0040_chilly_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1763452669453,
+      "tag": "0041_magical_revanche",
+      "breakpoints": true
     }
   ]
 }

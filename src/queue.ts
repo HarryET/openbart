@@ -31,9 +31,8 @@ export const queueHandler: ExportedHandlerQueueHandler<
 
         // Decode the raw feed
         const buffer = new Uint8Array(rawFeed);
-        const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
-          buffer,
-        );
+        const feed =
+          GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buffer);
 
         // Insert snapshot (skip if already exists)
         const [snapshot] = await db
@@ -43,7 +42,9 @@ export const queueHandler: ExportedHandlerQueueHandler<
             feedTimestamp: new Date(Number(feed.header.timestamp) * 1000),
             gtfsRealtimeVersion: feed.header.gtfsRealtimeVersion || "2.0",
             incrementality: feed.header.incrementality || 0,
-            ...(feed.header.feedVersion && { feedVersion: feed.header.feedVersion }),
+            ...(feed.header.feedVersion && {
+              feedVersion: feed.header.feedVersion,
+            }),
             entitiesCount: feed.entity.length,
           })
           .onConflictDoNothing()
@@ -51,7 +52,9 @@ export const queueHandler: ExportedHandlerQueueHandler<
 
         // Skip if snapshot already exists
         if (!snapshot) {
-          console.log(`Snapshot already exists for ${providerId} at ${feed.header.timestamp}`);
+          console.log(
+            `Snapshot already exists for ${providerId} at ${feed.header.timestamp}`,
+          );
           message.ack();
           return;
         }
@@ -68,7 +71,7 @@ export const queueHandler: ExportedHandlerQueueHandler<
               feedTimestamp: feed.header.timestamp?.toString() || "",
               entitiesCount: feed.entity.length.toString(),
             },
-          }
+          },
         );
 
         // Process entities
@@ -337,7 +340,7 @@ export const queueHandler: ExportedHandlerQueueHandler<
         // Mark snapshot as finished
         await db
           .update(snapshots)
-          .set({ finished: 1 })
+          .set({ finished: true })
           .where(eq(snapshots.id, snapshot.id));
 
         message.ack();
