@@ -1,5 +1,6 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
 import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
 import {
   snapshots,
   entities,
@@ -332,6 +333,12 @@ export const queueHandler: ExportedHandlerQueueHandler<
             alertId,
           });
         }
+
+        // Mark snapshot as finished
+        await db
+          .update(snapshots)
+          .set({ finished: 1 })
+          .where(eq(snapshots.id, snapshot.id));
 
         message.ack();
       } catch (error) {

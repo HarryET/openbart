@@ -37,10 +37,12 @@ export const snapshots = sqliteTable(
     incrementality: integer("incrementality").notNull().default(0), // Enum: 0=FULL_DATASET, 1=DIFFERENTIAL
     feedVersion: text("feed_version"), // Optional
     entitiesCount: integer("entities_count").default(0), // Computed: number of entities in this snapshot
+    finished: integer("finished").notNull().default(0), // 0 = processing, 1 = finished
   },
   (table) => ({
     providerIdx: index("snapshots_provider_idx").on(table.providerId),
     timestampIdx: index("snapshots_timestamp_idx").on(table.feedTimestamp),
+    finishedIdx: index("snapshots_finished_idx").on(table.providerId, table.finished),
     providerUnique: uniqueIndex("snapshots_provider_unique").on(
       table.providerId,
       table.feedTimestamp,
@@ -213,6 +215,7 @@ export const tripDescriptors = sqliteTable(
       columns: [table.providerId, table.tripId],
     }),
     providerIdx: index("trip_descriptors_provider_idx").on(table.providerId),
+    routeIdx: index("trip_descriptors_route_idx").on(table.providerId, table.routeId),
   }),
 );
 
@@ -230,6 +233,7 @@ export const vehicleDescriptors = sqliteTable(
       columns: [table.providerId, table.vehicleId],
     }),
     providerIdx: index("vehicle_descriptors_provider_idx").on(table.providerId),
+    vehicleIdIdx: index("vehicle_descriptors_vehicle_idx").on(table.vehicleId),
   }),
 );
 
@@ -249,6 +253,7 @@ export const positions = sqliteTable(
     pk: primaryKey({ columns: [table.providerId, table.entityId] }),
     providerIdx: index("positions_provider_idx").on(table.providerId),
     geoIdx: index("positions_geo_idx").on(table.latitude, table.longitude),
+    entityIdx: index("positions_entity_idx").on(table.entityId),
   }),
 );
 
@@ -267,6 +272,11 @@ export const stopTimeUpdates = sqliteTable(
   (table) => ({
     tripFk: index("stop_time_updates_trip_idx").on(table.tripUpdateId),
     providerIdx: index("stop_time_updates_provider_idx").on(table.providerId),
+    providerTripSeqIdx: index("stop_time_updates_provider_trip_seq_idx").on(
+      table.providerId,
+      table.tripUpdateId,
+      table.stopSequence
+    ),
   }),
 );
 
@@ -296,6 +306,7 @@ export const stopTimeEvents = sqliteTable(
     pk: primaryKey({
       columns: [table.stopTimeUpdateId, table.type],
     }),
+    stopTimeUpdateIdx: index("stop_time_events_stu_idx").on(table.stopTimeUpdateId),
   }),
 );
 

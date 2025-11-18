@@ -20,8 +20,36 @@
                 font-style: normal;
             }
 
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Oblique.woff2") format("woff2");
+                font-weight: 400;
+                font-style: italic;
+            }
+
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Bold-Oblique.woff2")
+                    format("woff2");
+                font-weight: 700;
+                font-style: italic;
+            }
+
             @theme {
                 --font-mono: "Berkeley Mono", "Courier New", monospace;
+
+                /* Colors from usgc_reticle_it */
+                --color-bg: #ffffff;
+                --color-fg: #1a1a1a;
+                --color-dim: #666666;
+
+                /* Accents */
+                --color-red: #cd0427;
+                --color-green: #459a63;
+                --color-cyan: #33f676;
+                --color-yellow: #f5c44f;
+                --color-blue: #6b40ef;
+                --color-magenta: #e93d8e;
             }
 
             @layer base {
@@ -30,94 +58,269 @@
                 }
 
                 body {
-                    background: #000000;
-                    color: #ff6600;
+                    background: var(--color-bg);
+                    color: var(--color-fg);
                 }
             }
 
-            /* Dot Matrix LED Effect */
-            .dot-matrix {
-                background: #1a1a1a;
-                border: 4px solid #333;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow:
-                    inset 0 0 20px rgba(0, 0, 0, 0.8),
-                    0 0 20px rgba(255, 102, 0, 0.3);
-            }
-
-            .led-text {
-                color: #ff6600;
-                text-shadow:
-                    0 0 5px #ff6600,
-                    0 0 10px #ff6600,
-                    0 0 15px #ff6600;
-                letter-spacing: 0.1em;
-                font-weight: 700;
-            }
-
-            .led-text-dim {
-                color: #663300;
-                text-shadow:
-                    0 0 2px #663300;
-                letter-spacing: 0.1em;
-            }
-
-            .platform-display {
-                min-height: 200px;
-            }
-
-            /* Scanline effect */
-            .dot-matrix::after {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
+            html,
+            body {
                 width: 100%;
                 height: 100%;
-                background: linear-gradient(
-                    to bottom,
-                    transparent 50%,
-                    rgba(0, 0, 0, 0.1) 50%
-                );
-                background-size: 100% 4px;
-                pointer-events: none;
-                opacity: 0.3;
             }
 
-            /* Arrival status colors */
-            .arriving { animation: blink 1s infinite; }
+            .page-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: start;
+                margin-bottom: 1.5rem;
+            }
+
+            .page-title {
+                font-size: 1rem;
+                font-weight: 700;
+                margin: 0;
+            }
+
+            .page-subtitle {
+                font-size: 0.75rem;
+                color: var(--color-dim);
+            }
+
+            .page-clock {
+                font-size: 0.75rem;
+                color: var(--color-dim);
+            }
+
+            .platforms-list {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .bart-display {
+                position: relative;
+            }
+
+            .bart-display::after {
+                content: 'openbart.com';
+                position: absolute;
+                bottom: 0.5rem;
+                right: 1rem;
+                font-size: 0.75rem;
+                color: rgba(248, 113, 113, 0.15);
+                pointer-events: none;
+            }
+
+            .bart-entry.arriving {
+                animation: blink 1s steps(2, jump-start) infinite;
+            }
+
+            .bart-empty {
+                text-align: center;
+                padding: 1.5rem 0;
+                letter-spacing: 0.25em;
+                color: rgba(248, 113, 113, 0.7);
+            }
+
             @keyframes blink {
                 0%, 49% { opacity: 1; }
-                50%, 100% { opacity: 0.3; }
+                50%, 100% { opacity: 0.2; }
             }
         </style>
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     </head>
-    <body class="p-6">
-        <div class="max-w-7xl mx-auto">
+    <body class="h-full pt-6 px-6 flex flex-col justify-between">
+        <div class="w-full flex-grow">
             <!-- Header -->
-            <header class="mb-6 text-center">
-                <div class="text-2xl font-bold led-text mb-2" id="station-name">
-                    LOADING...
+            <header class="page-header">
+                <div>
+                    <div class="page-title" id="station-name">loading...</div>
+                    <div class="page-subtitle">station display</div>
                 </div>
-                <div class="text-sm led-text-dim" id="current-time">
-                    --:--:--
-                </div>
+                <div class="page-clock" id="current-time">--:--:--</div>
             </header>
 
-            <!-- Platform Displays -->
-            <div id="platforms" class="grid gap-6">
-                <div class="led-text-dim text-center">
-                    Loading station data...
-                </div>
-            </div>
+            <!-- Platforms -->
+            <section id="platforms" class="platforms-list">
+                <article class="bart-display flex w-full max-w-lg flex-col gap-2 bg-black px-4 py-2 pt-4 font-mono">
+                    <div class="bart-entries flex flex-col gap-0 bg-red-900/20 text-red-400 uppercase">
+                        <div class="bart-empty">LOADING STATION DATA...</div>
+                    </div>
+                    <p class="text-sm text-white uppercase">Platform --</p>
+                </article>
+            </section>
         </div>
+
+        <!-- Footer -->
+        <footer
+            class="w-full flex justify-between text-xs py-6"
+            style="color: var(--color-dim)"
+        >
+            <div>
+                Created by
+                <a
+                    class="hover:bg-black hover:text-white"
+                    href="https://harrybairstow.com?utm_source=openbart"
+                    >Harry</a
+                >
+            </div>
+            <div class="flex flex-row gap-4">
+                <a
+                    class="hover:bg-black hover:text-white"
+                    href="https://github.com/harryet/openbart"
+                    >Github</a
+                >
+                <a
+                    class="hover:bg-black hover:text-white"
+                    href="https://openbart.com/docs.html"
+                    >Docs</a
+                >
+            </div>
+        </footer>
 
         <script>
             // Get station from URL
             const pathParts = window.location.pathname.split('/');
             const stationCode = pathParts[pathParts.length - 1].toUpperCase();
+
+            const MAX_VISIBLE_TRAINS = 2;
+            const ROTATION_INTERVAL_MS = 6000;
+            const platformStates = new Map();
+
+            const escapeHtml = (value) => {
+                const str = String(value ?? "");
+                const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+                return str.replace(/[&<>"']/g, (char) => map[char] || char);
+            };
+
+            const formatScheduledDeparture = (time) => {
+                if (!time) return null;
+                const [hour, minute] = time.split(':');
+                return `${hour}:${minute}`;
+            };
+
+            const normalizePlatform = (value) => {
+                if (!value || value === 'N/A') return '--';
+                return value;
+            };
+
+            const cssEscape = (value) => {
+                value = String(value);
+                if (window.CSS?.escape) return window.CSS.escape(value);
+                return value.replace(/["\\]/g, '\\$&');
+            };
+
+            const formatMinutes = (minutes) => {
+                if (minutes === null || minutes === undefined) return 'SCHEDULED';
+                if (minutes <= 0) return 'BOARDING';
+                if (minutes === 1) return '1 MIN';
+                return `${minutes} MIN`;
+            };
+
+            const buildDetailLine = (dep) => {
+                const segments = [];
+                if (dep.route?.route_name) {
+                    segments.push(dep.route.route_name.toUpperCase());
+                }
+                if (dep.train_length) {
+                    segments.push(`${dep.train_length}-CAR`);
+                }
+                const scheduled = formatScheduledDeparture(dep.scheduled_departure);
+                if (scheduled) {
+                    segments.push(`SCHED ${scheduled}`);
+                }
+                if (dep.delay > 60) {
+                    segments.push(`DELAY ${Math.round(dep.delay / 60)} MIN`);
+                }
+                if (dep.vehicle_label) {
+                    segments.push(dep.vehicle_label.toUpperCase());
+                }
+                return segments.join(' • ') || 'NO ADDITIONAL INFO';
+            };
+
+            const clearPlatformState = (platform) => {
+                const state = platformStates.get(platform);
+                if (state?.interval) {
+                    clearInterval(state.interval);
+                }
+                platformStates.delete(platform);
+            };
+
+            const syncPlatformStates = (activePlatforms) => {
+                platformStates.forEach((_, platform) => {
+                    if (!activePlatforms.includes(platform)) {
+                        clearPlatformState(platform);
+                    }
+                });
+            };
+
+            const renderPlatformEntries = (platform) => {
+                const state = platformStates.get(platform);
+                const card = document.querySelector(`[data-platform="${cssEscape(platform)}"]`);
+                if (!card) return;
+                const entriesEl = card.querySelector('.bart-entries');
+                if (!entriesEl) return;
+
+                const departures = state?.departures || [];
+                if (departures.length === 0) {
+                    entriesEl.innerHTML = `<div class="bart-empty">NO TRAINS SCHEDULED</div>`;
+                    return;
+                }
+
+                const toRender = [];
+                const limit = Math.min(MAX_VISIBLE_TRAINS, departures.length);
+                for (let i = 0; i < limit; i++) {
+                    const idx = (state.index + i) % departures.length;
+                    toRender.push(departures[idx]);
+                }
+
+                entriesEl.innerHTML = toRender
+                    .map(dep => {
+                        const destination = escapeHtml(dep.destination?.toUpperCase() || 'UNKNOWN');
+                        const minutesLabel = escapeHtml(formatMinutes(dep.minutes));
+                        const detailLine = escapeHtml(buildDetailLine(dep));
+                        const blinkClass = dep.minutes !== null && dep.minutes <= 1 ? 'arriving' : '';
+                        return `
+                            <div class="bart-entry p-0 m-0 flex flex-col gap-0 ${blinkClass}">
+                                <div id="line1" class="flex flex-row justify-between">
+                                    <p>${destination}</p>
+                                    <p>${minutesLabel}</p>
+                                </div>
+                                <div id="line2" class="flex flex-row justify-between">
+                                    <p>${detailLine}</p>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+            };
+
+            const setPlatformState = (platform, departures) => {
+                let state = platformStates.get(platform);
+                if (!state) {
+                    state = { departures: [], index: 0, interval: null };
+                    platformStates.set(platform, state);
+                }
+
+                if (state.interval) {
+                    clearInterval(state.interval);
+                    state.interval = null;
+                }
+
+                state.departures = departures;
+                state.index = 0;
+                renderPlatformEntries(platform);
+
+                if (departures.length > MAX_VISIBLE_TRAINS) {
+                    state.interval = setInterval(() => {
+                        const current = platformStates.get(platform);
+                        if (!current || current.departures.length === 0) return;
+                        current.index = (current.index + MAX_VISIBLE_TRAINS) % current.departures.length;
+                        renderPlatformEntries(platform);
+                    }, ROTATION_INTERVAL_MS);
+                }
+            };
 
             // Update clock
             function updateClock() {
@@ -136,87 +339,92 @@
 
                     // Update station name
                     document.getElementById("station-name").textContent =
-                        data.station_name?.toUpperCase() || data.station;
+                        data.station_name?.toLowerCase() || data.station?.toLowerCase() || 'unknown';
 
                     // Group departures by platform
                     const platformMap = new Map();
 
                     data.departures.forEach(dep => {
-                        const platform = dep.platform || 'N/A';
+                        const platform = normalizePlatform(dep.platform);
                         if (!platformMap.has(platform)) {
                             platformMap.set(platform, []);
                         }
                         platformMap.get(platform).push(dep);
                     });
 
-                    // Sort platforms
-                    const platforms = Array.from(platformMap.keys()).sort();
+                    const declaredPlatforms = Array.isArray(data.platforms)
+                        ? data.platforms.filter(Boolean).map(normalizePlatform)
+                        : [];
+
+                    const platformSet = new Set(
+                        declaredPlatforms.length ? declaredPlatforms : []
+                    );
+
+                    platformMap.forEach((_, platform) => {
+                        platformSet.add(platform);
+                    });
+
+                    const sortPlatforms = (list) =>
+                        list.sort((a, b) => {
+                            const numA = Number(a);
+                            const numB = Number(b);
+                            if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+                                return numA - numB;
+                            }
+                            return String(a).localeCompare(String(b));
+                        });
+
+                    const platforms = sortPlatforms(Array.from(platformSet));
+                    syncPlatformStates(platforms);
 
                     // Render platform displays
                     let html = '';
 
                     if (platforms.length === 0) {
-                        html = '<div class="dot-matrix text-center"><div class="led-text text-xl">NO DEPARTURES</div></div>';
+                        html = `
+                            <article class="bart-display flex w-full max-w-lg flex-col gap-2 bg-black px-4 py-2 pt-4 font-mono">
+                                <div class="bart-entries flex flex-col gap-0 bg-red-900/20 text-red-400 uppercase">
+                                    <div class="bart-empty">NO DEPARTURES</div>
+                                </div>
+                                <p class="text-sm text-white uppercase">Platform --</p>
+                            </article>
+                        `;
+                        syncPlatformStates([]);
                     } else {
-                        html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
-
                         platforms.forEach(platform => {
-                            const departures = platformMap.get(platform).slice(0, 3); // Show next 3 trains
-
-                            html += '<div class="dot-matrix platform-display relative">';
-                            html += `<div class="led-text text-sm mb-4 border-b border-orange-900 pb-2">PLATFORM ${platform}</div>`;
-
-                            departures.forEach((dep, idx) => {
-                                const destination = dep.destination.toUpperCase();
-                                const routeName = dep.route?.route_name || '';
-                                const minutes = dep.minutes;
-
-                                let timeDisplay = '';
-                                if (minutes === null) {
-                                    timeDisplay = 'SCHEDULED';
-                                } else if (minutes <= 0) {
-                                    timeDisplay = 'BOARDING';
-                                } else if (minutes === 1) {
-                                    timeDisplay = '1 MIN';
-                                } else {
-                                    timeDisplay = `${minutes} MIN`;
-                                }
-
-                                const isArriving = minutes !== null && minutes <= 1;
-                                const blinkClass = isArriving ? 'arriving' : '';
-
-                                html += '<div class="mb-6">';
-                                html += `<div class="led-text text-2xl mb-1 ${blinkClass}">${destination}</div>`;
-                                html += '<div class="flex justify-between items-end">';
-                                html += `<div class="led-text-dim text-sm">${routeName}</div>`;
-                                html += `<div class="led-text text-xl ${blinkClass}">${timeDisplay}</div>`;
-                                html += '</div>';
-                                if (dep.delay > 60) {
-                                    html += `<div class="led-text-dim text-xs mt-1">DELAY ${Math.round(dep.delay / 60)} MIN</div>`;
-                                }
-                                html += '</div>';
-                            });
-
-                            // Fill empty slots
-                            for (let i = departures.length; i < 3; i++) {
-                                html += '<div class="mb-6">';
-                                html += '<div class="led-text-dim text-2xl mb-1">................</div>';
-                                html += '<div class="led-text-dim text-sm">NO DATA</div>';
-                                html += '</div>';
-                            }
-
-                            html += '</div>';
+                            const safePlatform = platform || '--';
+                            const attrValue = escapeHtml(safePlatform);
+                            const label = escapeHtml(`Platform ${safePlatform}`);
+                            html += `
+                                <article class="bart-display flex w-full max-w-lg flex-col gap-2 bg-black px-4 py-2 pt-4 font-mono" data-platform="${attrValue}">
+                                    <div class="bart-entries flex flex-col gap-0 bg-red-900/20 text-red-400 uppercase">
+                                        <div class="bart-empty">LOADING...</div>
+                                    </div>
+                                    <p class="text-sm text-white uppercase">${label}</p>
+                                </article>
+                            `;
                         });
-
-                        html += '</div>';
                     }
 
                     document.getElementById("platforms").innerHTML = html;
 
+                    platforms.forEach(platform => {
+                        const departures = platformMap.get(platform) || [];
+                        setPlatformState(platform, departures);
+                    });
+
                 } catch (error) {
                     console.error('Error fetching departures:', error);
+                    syncPlatformStates([]);
                     document.getElementById("platforms").innerHTML =
-                        '<div class="dot-matrix text-center"><div class="led-text text-xl">ERROR LOADING DATA</div></div>';
+                        `
+                            <article class="bart-display flex w-full max-w-lg flex-col gap-2 bg-black px-4 py-2 pt-4 font-mono">
+                                <div class="bart-entries flex flex-col gap-0 bg-red-900/20 text-red-400 uppercase">
+                                    <div class="bart-empty">ERROR LOADING DATA</div>
+                                </div>
+                                <p class="text-sm text-white uppercase">Platform --</p>
+                            </article>
+                        `;
                 }
             }
 

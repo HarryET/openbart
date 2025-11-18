@@ -1,47 +1,35 @@
 import { drizzle } from "drizzle-orm/d1";
-import { and, between, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { snapshots } from "../schema";
 
-export async function getClosestSnapshot(
+export async function getLatestFinishedSnapshot(
   db: ReturnType<typeof drizzle>,
   providerId: string,
-  targetTime?: Date,
 ) {
-  const target = targetTime || new Date();
-  const oneMinBefore = new Date(target.getTime() - 60 * 1000);
-  const oneMinAfter = new Date(target.getTime() + 60 * 1000);
-
-  // Find snapshots within 1 minute window
-  const candidates = await db
+  const [latest] = await db
     .select()
     .from(snapshots)
     .where(
       and(
         eq(snapshots.providerId, providerId),
-        between(snapshots.feedTimestamp, oneMinBefore, oneMinAfter),
-      ),
+        eq(snapshots.finished, 1)
+      )
     )
-    .orderBy(desc(snapshots.feedTimestamp));
+    .orderBy(desc(snapshots.feedTimestamp))
+    .limit(1);
 
-  if (candidates.length === 0) {
-    return null;
-  }
+  return latest || null;
+}
 
-  // Find the closest one
-  let closest = candidates[0];
-  let minDiff = Math.abs(
-    target.getTime() - new Date(closest.feedTimestamp).getTime(),
-  );
+export async function getSnapshotById(
+  db: ReturnType<typeof drizzle>,
+  snapshotId: number,
+) {
+  const [snapshot] = await db
+    .select()
+    .from(snapshots)
+    .where(eq(snapshots.id, snapshotId))
+    .limit(1);
 
-  for (const candidate of candidates) {
-    const diff = Math.abs(
-      target.getTime() - new Date(candidate.feedTimestamp).getTime(),
-    );
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = candidate;
-    }
-  }
-
-  return closest;
+  return snapshot || null;
 }

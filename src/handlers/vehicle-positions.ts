@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   entities,
   vehiclePositions,
@@ -8,107 +8,114 @@ import {
   vehicleDescriptors,
   positions,
 } from "../schema";
-import { getClosestSnapshot } from "./utils";
+import { getLatestFinishedSnapshot, getSnapshotById } from "./utils";
 
 export async function vehiclePositionsHandler(c: Context) {
   const db = drizzle(c.env.DATABASE);
   const providerId = c.req.param("provider");
-  const atParam = c.req.query("at");
+  const snapshotParam = c.req.query("snapshot");
 
-  let targetTime: Date | undefined;
-  if (atParam) {
-    targetTime = new Date(atParam);
-    if (isNaN(targetTime.getTime())) {
-      return c.json({ error: "Invalid date format for 'at' parameter" }, 400);
+  let snapshot;
+  if (snapshotParam) {
+    const snapshotId = parseInt(snapshotParam);
+    if (isNaN(snapshotId)) {
+      return c.json({ error: "Invalid snapshot ID" }, 400);
+    }
+    snapshot = await getSnapshotById(db, snapshotId);
+    if (!snapshot) {
+      return c.json({ error: "Snapshot not found" }, 404);
+    }
+    if (snapshot.providerId !== providerId) {
+      return c.json({ error: "Snapshot does not belong to this provider" }, 400);
+    }
+  } else {
+    snapshot = await getLatestFinishedSnapshot(db, providerId);
+    if (!snapshot) {
+      return c.json(
+        {
+          error: "No finished snapshot found",
+          provider: providerId,
+        },
+        404,
+      );
     }
   }
 
-  const snapshot = await getClosestSnapshot(db, providerId, targetTime);
-  if (!snapshot) {
-    return c.json(
-      {
-        error: "No snapshot found within 1 minute of target time",
-        provider: providerId,
-        targetTime: targetTime?.toISOString(),
-      },
-      404,
-    );
-  }
-
-  const vehiclePositionEntities = await db
-    .select()
+  // Single query with JOINs to get all vehicle positions with related data
+  const results = await db
+    .select({
+      entity: entities,
+      vehiclePosition: vehiclePositions,
+      tripDescriptor: tripDescriptors,
+      vehicleDescriptor: vehicleDescriptors,
+      position: positions,
+    })
     .from(entities)
-    .where(eq(entities.snapshotId, snapshot.id))
     .innerJoin(
       vehiclePositions,
-      eq(entities.vehiclePositionId, vehiclePositions.id),
-    );
+      eq(entities.vehiclePositionId, vehiclePositions.id)
+    )
+    .leftJoin(
+      tripDescriptors,
+      and(
+        eq(tripDescriptors.providerId, providerId),
+        eq(tripDescriptors.tripId, vehiclePositions.entityId)
+      )
+    )
+    .leftJoin(
+      vehicleDescriptors,
+      and(
+        eq(vehicleDescriptors.providerId, providerId),
+        eq(vehicleDescriptors.vehicleId, vehiclePositions.entityId)
+      )
+    )
+    .leftJoin(
+      positions,
+      and(
+        eq(positions.providerId, providerId),
+        eq(positions.entityId, vehiclePositions.entityId)
+      )
+    )
+    .where(eq(entities.snapshotId, snapshot.id));
 
-  const results = await Promise.all(
-    vehiclePositionEntities.map(async (row) => {
-      const vehiclePosition = row.vehicle_positions;
-      const entity = row.entities;
-
-      const tripDescriptor = await db
-        .select()
-        .from(tripDescriptors)
-        .where(eq(tripDescriptors.providerId, providerId))
-        .limit(1)
-        .then((rows) => rows[0]);
-
-      const vehicleDescriptor = await db
-        .select()
-        .from(vehicleDescriptors)
-        .where(eq(vehicleDescriptors.providerId, providerId))
-        .limit(1)
-        .then((rows) => rows[0]);
-
-      const position = await db
-        .select()
-        .from(positions)
-        .where(eq(positions.providerId, providerId))
-        .limit(1)
-        .then((rows) => rows[0]);
-
-      return {
-        entity_id: entity.entityId,
-        is_deleted: entity.isDeleted === 1,
-        trip: tripDescriptor
-          ? {
-              trip_id: tripDescriptor.tripId,
-              route_id: tripDescriptor.routeId,
-              direction_id: tripDescriptor.directionId,
-              start_date: tripDescriptor.startDate,
-              start_time: tripDescriptor.startTime,
-              schedule_relationship: tripDescriptor.scheduleRelationship,
-            }
-          : null,
-        vehicle: vehicleDescriptor
-          ? {
-              id: vehicleDescriptor.vehicleId,
-              label: vehicleDescriptor.label,
-              license_plate: vehicleDescriptor.licensePlate,
-            }
-          : null,
-        position: position
-          ? {
-              latitude: position.latitude,
-              longitude: position.longitude,
-              bearing: position.bearing,
-              odometer: position.odometer,
-              speed: position.speed,
-            }
-          : null,
-        current_stop_sequence: vehiclePosition.currentStopSequence,
-        stop_id: vehiclePosition.stopId,
-        current_status: vehiclePosition.currentStatus,
-        timestamp: vehiclePosition.timestamp,
-        congestion_level: vehiclePosition.congestionLevel,
-        occupancy_status: vehiclePosition.occupancyStatus,
-        occupancy_percentage: vehiclePosition.occupancyPercentage,
-      };
-    }),
-  );
+  // Transform results
+  const vehiclePositionsData = results.map((row) => ({
+    entity_id: row.entity.entityId,
+    is_deleted: row.entity.isDeleted === 1,
+    trip: row.tripDescriptor
+      ? {
+          trip_id: row.tripDescriptor.tripId,
+          route_id: row.tripDescriptor.routeId,
+          direction_id: row.tripDescriptor.directionId,
+          start_date: row.tripDescriptor.startDate,
+          start_time: row.tripDescriptor.startTime,
+          schedule_relationship: row.tripDescriptor.scheduleRelationship,
+        }
+      : null,
+    vehicle: row.vehicleDescriptor
+      ? {
+          id: row.vehicleDescriptor.vehicleId,
+          label: row.vehicleDescriptor.label,
+          license_plate: row.vehicleDescriptor.licensePlate,
+        }
+      : null,
+    position: row.position
+      ? {
+          latitude: row.position.latitude,
+          longitude: row.position.longitude,
+          bearing: row.position.bearing,
+          odometer: row.position.odometer,
+          speed: row.position.speed,
+        }
+      : null,
+    current_stop_sequence: row.vehiclePosition.currentStopSequence,
+    stop_id: row.vehiclePosition.stopId,
+    current_status: row.vehiclePosition.currentStatus,
+    timestamp: row.vehiclePosition.timestamp,
+    congestion_level: row.vehiclePosition.congestionLevel,
+    occupancy_status: row.vehiclePosition.occupancyStatus,
+    occupancy_percentage: row.vehiclePosition.occupancyPercentage,
+  }));
 
   return c.json({
     snapshot: {
@@ -118,6 +125,6 @@ export async function vehiclePositionsHandler(c: Context) {
       entity_count: snapshot.entitiesCount,
     },
     provider: providerId,
-    vehicle_positions: results,
+    vehicle_positions: vehiclePositionsData,
   });
 }

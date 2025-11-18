@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>OpenBART API Documentation</title>
+
+        <style type="text/tailwindcss">
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Regular.woff2") format("woff2");
+                font-weight: 400;
+                font-style: normal;
+            }
+
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Bold.woff2") format("woff2");
+                font-weight: 700;
+                font-style: normal;
+            }
+
+            @theme {
+                --font-mono: "Berkeley Mono", "Courier New", monospace;
+            }
+
+            @layer base {
+                * {
+                    font-family: var(--font-mono);
+                    box-sizing: border-box;
+                }
+
+                body {
+                    margin: 0;
+                    background: #ffffff;
+                    color: #000000;
+                    line-height: 1.6;
+                    font-size: 0.875rem;
+                }
+            }
+
+            .page {
+                max-width: 960px;
+                margin: 0 auto;
+                padding: 3rem 2rem;
+            }
+
+            .header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 3rem;
+                padding-bottom: 1rem;
+                border-bottom: 3px solid #000000;
+            }
+
+            .header-left h1 {
+                margin: 0;
+                font-size: 1rem;
+                font-weight: 700;
+                letter-spacing: 0.1em;
+            }
+
+            .header-left p {
+                margin: 0.25rem 0 0 0;
+                font-size: 0.875rem;
+            }
+
+            .header-right {
+                text-align: right;
+                font-size: 0.875rem;
+            }
+
+            .doc-title {
+                text-align: center;
+                border: 2px solid #000000;
+                padding: 1.5rem;
+                margin: 2rem auto;
+                max-width: 400px;
+            }
+
+            .doc-title h2 {
+                margin: 0;
+                font-size: 1.125rem;
+                letter-spacing: 0.15em;
+                line-height: 1.8;
+            }
+
+            .section {
+                margin: 3rem 0;
+            }
+
+            .section-title {
+                font-size: 1rem;
+                font-weight: 700;
+                letter-spacing: 0.1em;
+                margin: 2rem 0 1rem 0;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid #000000;
+            }
+
+            .endpoint {
+                margin: 2rem 0;
+            }
+
+            .endpoint-method {
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+
+            .param-list {
+                margin: 1rem 0;
+                padding-left: 2rem;
+            }
+
+            .param-list dt {
+                font-weight: 700;
+                margin-top: 1rem;
+            }
+
+            .param-list dd {
+                margin: 0.25rem 0 0 2rem;
+            }
+
+            .code-block {
+                background: #f5f5f5;
+                border: 1px solid #000000;
+                padding: 1rem;
+                margin: 1rem 0;
+                overflow-x: auto;
+                white-space: pre;
+                font-size: 0.875rem;
+            }
+
+            .note {
+                margin: 2rem 0;
+                padding: 1rem;
+            }
+
+            .station-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.5rem 2rem;
+                margin: 1rem 0;
+            }
+
+            .station-code {
+                display: inline-block;
+                background: #000000;
+                color: #ffffff;
+                padding: 0.125rem 0.5rem;
+                margin-right: 0.5rem;
+            }
+
+            .route-list {
+                margin: 1rem 0;
+            }
+
+            .route-item {
+                margin: 0.5rem 0;
+                padding: 0.5rem;
+                background: #f5f5f5;
+            }
+
+            .footer {
+                margin-top: 4rem;
+                padding-top: 2rem;
+                border-top: 3px solid #000000;
+                text-align: center;
+                font-size: 0.875rem;
+            }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    </head>
+    <body>
+        <div class="page">
+            <header class="header">
+                <div class="header-left">
+                    <h1>OPENBART</h1>
+                    <p>REAL-TIME TRANSIT SYSTEMS</p>
+                </div>
+                <div class="header-right">
+                    <p>SECTION 1.0</p>
+                    <p id="current-date">JAN 2025</p>
+                </div>
+            </header>
+
+            <section class="section">
+                <h3 class="section-title">OVERVIEW</h3>
+                <p>
+                    The OpenBART API provides real-time transit data for BART
+                    (Bay Area Rapid Transit) using the GTFS Realtime
+                    specification. All endpoints return JSON responses with
+                    current vehicle positions, trip updates, and service alerts.
+                </p>
+            </section>
+
+            <section class="section">
+                <h3 class="section-title">ENDPOINTS</h3>
+
+                <div class="endpoint">
+                    <div class="endpoint-method">[GET] /bart/snapshots</div>
+                    <p>
+                        Retrieve paginated list of data snapshots with search filters.
+                    </p>
+
+                    <dl class="param-list">
+                        <dt>page</dt>
+                        <dd>Page number (default: 1)</dd>
+
+                        <dt>limit</dt>
+                        <dd>Results per page (default: 20, max: 100)</dd>
+
+                        <dt>finished</dt>
+                        <dd>Filter by completion status (true/false)</dd>
+
+                        <dt>from</dt>
+                        <dd>Filter by start date (ISO 8601 format)</dd>
+
+                        <dt>to</dt>
+                        <dd>Filter by end date (ISO 8601 format)</dd>
+                    </dl>
+
+                    <div class="code-block">RESPONSE    JSON
+STATUS      200 OK
+DATA        {
+  "snapshots": [
+    {
+      "id": 123,
+      "feed_timestamp": "2025-01-17T12:00:00Z",
+      "entities_count": 42,
+      "finished": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "total_pages": 5,
+    "has_next": true,
+    "has_prev": false
+  }
+}</div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="endpoint-method">[GET] /bart/trip-updates</div>
+                    <p>
+                        Retrieve real-time trip updates for all active trains.
+                    </p>
+
+                    <dl class="param-list">
+                        <dt>snapshot</dt>
+                        <dd>Snapshot ID (optional, defaults to latest finished)</dd>
+                    </dl>
+
+                    <div class="code-block">RESPONSE    JSON
+STATUS      200 OK
+DATA        {
+  "snapshot": {
+    "id": 123,
+    "timestamp": "2025-01-17T12:00:00Z",
+    "feed_version": "2.0"
+  },
+  "trip_updates": [
+    {
+      "trip": {
+        "trip_id": "...",
+        "route_id": "...",
+        "headsign": "..."
+      },
+      "vehicle": {
+        "id": "...",
+        "label": "..."
+      },
+      "delay": 0,
+      "stop_time_updates": [...]
+    }
+  ]
+}</div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="endpoint-method">
+                        [GET] /bart/vehicle-positions
+                    </div>
+                    <p>
+                        Retrieve current positions of all active vehicles in the
+                        system.
+                    </p>
+
+                    <dl class="param-list">
+                        <dt>snapshot</dt>
+                        <dd>Snapshot ID (optional, defaults to latest finished)</dd>
+                    </dl>
+
+                    <div class="code-block">RESPONSE    JSON
+STATUS      200 OK
+DATA        {
+  "snapshot": {
+    "id": 123,
+    "timestamp": "2025-01-17T12:00:00Z"
+  },
+  "vehicle_positions": [
+    {
+      "vehicle": {
+        "id": "...",
+        "label": "..."
+      },
+      "position": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      },
+      "current_status": "IN_TRANSIT_TO"
+    }
+  ]
+}</div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="endpoint-method">
+                        [GET] /bart/departures/:station
+                    </div>
+                    <p>
+                        Retrieve upcoming departures for a specific station.
+                        Replace :station with the station code (e.g., EMBR,
+                        MONT, POWL).
+                    </p>
+
+                    <dl class="param-list">
+                        <dt>snapshot</dt>
+                        <dd>Snapshot ID (optional, defaults to latest finished)</dd>
+                    </dl>
+
+                    <div class="code-block">RESPONSE    JSON
+STATUS      200 OK
+DATA        {
+  "station": "EMBR",
+  "station_name": "Embarcadero",
+  "platforms": ["1", "2"],
+  "departures": [
+    {
+      "destination": "Richmond",
+      "route": {
+        "route_id": "...",
+        "route_name": "..."
+      },
+      "platform": "1",
+      "minutes": 3,
+      "delay": 0
+    }
+  ]
+}</div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="endpoint-method">[GET] /bart/alerts</div>
+                    <p>
+                        Retrieve current service alerts affecting the transit
+                        system.
+                    </p>
+
+                    <dl class="param-list">
+                        <dt>snapshot</dt>
+                        <dd>Snapshot ID (optional, defaults to latest finished)</dd>
+                    </dl>
+
+                    <div class="code-block">RESPONSE    JSON
+STATUS      200 OK
+DATA        {
+  "snapshot": {
+    "id": 123,
+    "timestamp": "2025-01-17T12:00:00Z"
+  },
+  "alerts": [
+    {
+      "alert_id": "...",
+      "header": "Service Alert",
+      "description": "...",
+      "effect": "MODIFIED_SERVICE",
+      "affected_routes": [...],
+      "affected_stops": [...]
+    }
+  ]
+}</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h3 class="section-title">RESPONSE CODES</h3>
+
+                <dl class="param-list">
+                    <dt>200 OK</dt>
+                    <dd>Request successful. Data returned in response body.</dd>
+
+                    <dt>404 NOT FOUND</dt>
+                    <dd>Requested resource does not exist.</dd>
+
+                    <dt>500 INTERNAL ERROR</dt>
+                    <dd>
+                        Server error. Contact system administrator if error
+                        persists.
+                    </dd>
+                </dl>
+            </section>
+
+            <section class="section">
+                <h3 class="section-title">STATION CODES</h3>
+
+                <div class="station-grid">
+                    <div><span class="station-code">12TH</span>12th St. Oakland City Center</div>
+                    <div><span class="station-code">16TH</span>16th St. Mission</div>
+                    <div><span class="station-code">19TH</span>19th St. Oakland</div>
+                    <div><span class="station-code">24TH</span>24th St. Mission</div>
+                    <div><span class="station-code">ANTC</span>Antioch</div>
+                    <div><span class="station-code">ASHB</span>Ashby</div>
+                    <div><span class="station-code">BALB</span>Balboa Park</div>
+                    <div><span class="station-code">BAYF</span>Bay Fair</div>
+                    <div><span class="station-code">CAST</span>Castro Valley</div>
+                    <div><span class="station-code">CIVC</span>Civic Center/UN Plaza</div>
+                    <div><span class="station-code">COLS</span>Coliseum</div>
+                    <div><span class="station-code">COLM</span>Colma</div>
+                    <div><span class="station-code">CONC</span>Concord</div>
+                    <div><span class="station-code">DALY</span>Daly City</div>
+                    <div><span class="station-code">DBRK</span>Downtown Berkeley</div>
+                    <div><span class="station-code">DUBL</span>Dublin/Pleasanton</div>
+                    <div><span class="station-code">DELN</span>El Cerrito del Norte</div>
+                    <div><span class="station-code">PLZA</span>El Cerrito Plaza</div>
+                    <div><span class="station-code">EMBR</span>Embarcadero</div>
+                    <div><span class="station-code">FRMT</span>Fremont</div>
+                    <div><span class="station-code">FTVL</span>Fruitvale</div>
+                    <div><span class="station-code">GLEN</span>Glen Park</div>
+                    <div><span class="station-code">HAYW</span>Hayward</div>
+                    <div><span class="station-code">LAFY</span>Lafayette</div>
+                    <div><span class="station-code">LAKE</span>Lake Merritt</div>
+                    <div><span class="station-code">MCAR</span>MacArthur</div>
+                    <div><span class="station-code">MLBR</span>Millbrae</div>
+                    <div><span class="station-code">MONT</span>Montgomery St.</div>
+                    <div><span class="station-code">NBRK</span>North Berkeley</div>
+                    <div><span class="station-code">NCON</span>North Concord/Martinez</div>
+                    <div><span class="station-code">OAKL</span>Oakland Int'l Airport</div>
+                    <div><span class="station-code">ORIN</span>Orinda</div>
+                    <div><span class="station-code">PITT</span>Pittsburg/Bay Point</div>
+                    <div><span class="station-code">PCTR</span>Pittsburg Center</div>
+                    <div><span class="station-code">PHIL</span>Pleasant Hill/Contra Costa</div>
+                    <div><span class="station-code">POWL</span>Powell St.</div>
+                    <div><span class="station-code">RICH</span>Richmond</div>
+                    <div><span class="station-code">ROCK</span>Rockridge</div>
+                    <div><span class="station-code">SBRN</span>San Bruno</div>
+                    <div><span class="station-code">SFIA</span>San Francisco Int'l Airport</div>
+                    <div><span class="station-code">SANL</span>San Leandro</div>
+                    <div><span class="station-code">SHAY</span>South Hayward</div>
+                    <div><span class="station-code">SSAN</span>South San Francisco</div>
+                    <div><span class="station-code">UCTY</span>Union City</div>
+                    <div><span class="station-code">WARM</span>Warm Springs/South Fremont</div>
+                    <div><span class="station-code">WCRK</span>Walnut Creek</div>
+                    <div><span class="station-code">WDUB</span>West Dublin/Pleasanton</div>
+                    <div><span class="station-code">WOAK</span>West Oakland</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h3 class="section-title">ROUTES</h3>
+
+                <div class="route-list">
+                    <div class="route-item">
+                        <strong>RED LINE</strong> - Richmond to Millbrae/SFO
+                    </div>
+                    <div class="route-item">
+                        <strong>ORANGE LINE</strong> - Richmond to Berryessa
+                    </div>
+                    <div class="route-item">
+                        <strong>YELLOW LINE</strong> - Antioch to SFO/Millbrae
+                    </div>
+                    <div class="route-item">
+                        <strong>GREEN LINE</strong> - Berryessa to Daly City
+                    </div>
+                    <div class="route-item">
+                        <strong>BLUE LINE</strong> - Dublin/Pleasanton to Daly
+                        City
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h3 class="section-title">NOTES</h3>
+
+                <div class="note">
+                    All timestamps are provided in ISO 8601 format. Data is
+                    captured in snapshots that are marked as finished once
+                    processing completes. Response times are typically under
+                    100ms.
+                </div>
+
+                <div class="note">
+                    Snapshots represent point-in-time captures of the GTFS-RT
+                    feed. All endpoints default to the latest finished snapshot
+                    unless a specific snapshot ID is provided via the ?snapshot
+                    parameter.
+                </div>
+
+                <div class="note">
+                    Station codes follow BART's official four-letter naming
+                    convention. Use the codes listed above when making API
+                    requests to the /bart/departures/:station endpoint.
+                </div>
+
+                <div class="note">
+                    Delay values are provided in seconds. Positive values
+                    indicate the vehicle is running behind schedule. Negative
+                    values indicate the vehicle is ahead of schedule.
+                </div>
+            </section>
+
+            <footer class="footer">
+                <p>OPENBART REAL-TIME TRANSIT SYSTEMS</p>
+                <p>Page 1</p>
+            </footer>
+        </div>
+
+        <script>
+            // Update date
+            const months = [
+                "JAN",
+                "FEB",
+                "MAR",
+                "APR",
+                "MAY",
+                "JUN",
+                "JUL",
+                "AUG",
+                "SEP",
+                "OCT",
+                "NOV",
+                "DEC",
+            ];
+            const now = new Date();
+            document.getElementById("current-date").textContent =
+                months[now.getMonth()] + " " + now.getFullYear();
+        </script>
+    </body>
+</html>

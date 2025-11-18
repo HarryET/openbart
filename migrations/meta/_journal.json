@@ -29,6 +29,20 @@
       "when": 1763448810449,
       "tag": "0038_talented_night_nurse",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1763449538164,
+      "tag": "0039_empty_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1763451779552,
+      "tag": "0040_chilly_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import { tripUpdatesHandler } from "./handlers/trip-updates";
 import { vehiclePositionsHandler } from "./handlers/vehicle-positions";
 import { alertsHandler } from "./handlers/alerts";
 import { departuresHandler } from "./handlers/departures";
+import { snapshotsHandler } from "./handlers/snapshots";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -18,6 +19,7 @@ app.get("/display/:station", async (c) => {
 });
 
 // API endpoints
+app.get("/:provider/snapshots", snapshotsHandler);
 app.get("/:provider/trip-updates", tripUpdatesHandler);
 app.get("/:provider/vehicle-positions", vehiclePositionsHandler);
 app.get("/:provider/alerts", alertsHandler);

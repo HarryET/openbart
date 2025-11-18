@@ -185,8 +185,10 @@
                                     trip.route?.color || "999999";
 
                                 html +=
-                                    '<div class="border-b border-gray-200 pb-4">';
-                                html += `<div class="font-bold mb-1" style="color: #${routeColor}">${routeName}</div>`;
+                                    '<div class="mb-4 flex gap-3 items-start">';
+                                html += `<div class="w-2 h-2 rounded-full flex-shrink-0 mt-1" style="background-color: #${routeColor}"></div>`;
+                                html += '<div class="flex-grow">';
+                                html += `<div class="font-bold mb-1">${routeName}</div>`;
                                 html += '<div class="space-y-0.5">';
                                 html += `<div><span style="color: var(--color-dim)">destination:</span> ${headsign}</div>`;
                                 html += `<div><span style="color: var(--color-dim)">train:</span> ${trainId}</div>`;
@@ -216,6 +218,7 @@
                                         });
                                 }
 
+                                html += "</div>";
                                 html += "</div>";
                                 html += "</div>";
                             });
@@ -258,11 +261,18 @@
                     >Harry</a
                 >
             </div>
-            <a
-                class="hover:bg-black hover:text-white"
-                href="https://github.com/harryet/openbart"
-                >Github</a
-            >
+            <div class="flex flex-row gap-4">
+                <a
+                    class="hover:bg-black hover:text-white"
+                    href="https://github.com/harryet/openbart"
+                    >Github</a
+                >
+                <a
+                    class="hover:bg-black hover:text-white"
+                    href="https://openbart.com/docs.html"
+                    >Docs</a
+                >
+            </div>
         </footer>
     </body>
 </html>

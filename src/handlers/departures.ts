@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import {
   entities,
   tripUpdates,
@@ -13,7 +13,7 @@ import {
   trips,
   stopTimes,
 } from "../schema";
-import { getClosestSnapshot } from "./utils";
+import { getLatestFinishedSnapshot, getSnapshotById } from "./utils";
 
 export async function departuresHandler(c: Context) {
   const db = drizzle(c.env.DATABASE);
@@ -26,7 +26,6 @@ export async function departuresHandler(c: Context) {
   }
 
   // Find the stop_id based on station and platform
-  // e.g., station "LAKE" + platform "1" = stop_id "A10-1"
   const stopQuery = platform
     ? and(
         eq(stops.providerId, providerId),
@@ -50,190 +49,169 @@ export async function departuresHandler(c: Context) {
     );
   }
 
-  const atParam = c.req.query("at");
-  let targetTime: Date | undefined;
-  if (atParam) {
-    targetTime = new Date(atParam);
-    if (isNaN(targetTime.getTime())) {
-      return c.json({ error: "Invalid date format for 'at' parameter" }, 400);
+  const snapshotParam = c.req.query("snapshot");
+
+  let snapshot;
+  if (snapshotParam) {
+    const snapshotId = parseInt(snapshotParam);
+    if (isNaN(snapshotId)) {
+      return c.json({ error: "Invalid snapshot ID" }, 400);
+    }
+    snapshot = await getSnapshotById(db, snapshotId);
+    if (!snapshot) {
+      return c.json({ error: "Snapshot not found" }, 404);
+    }
+    if (snapshot.providerId !== providerId) {
+      return c.json({ error: "Snapshot does not belong to this provider" }, 400);
+    }
+  } else {
+    snapshot = await getLatestFinishedSnapshot(db, providerId);
+    if (!snapshot) {
+      return c.json(
+        {
+          error: "No finished snapshot found",
+          provider: providerId,
+        },
+        404
+      );
     }
   }
 
-  // Find closest snapshot
-  const snapshot = await getClosestSnapshot(db, providerId, targetTime);
-  if (!snapshot) {
-    return c.json(
-      {
-        error: "No snapshot found within 1 minute of target time",
-        provider: providerId,
-        targetTime: targetTime?.toISOString(),
-      },
-      404
-    );
-  }
+  const stationStopIds = stationStops.map((s) => s.stopId);
 
-  // Get all trip updates for this snapshot
-  const tripUpdateEntities = await db
-    .select()
+  // Single query with JOINs to get all relevant departures
+  const departureResults = await db
+    .select({
+      tripUpdate: tripUpdates,
+      entity: entities,
+      tripDescriptor: tripDescriptors,
+      staticTrip: trips,
+      route: routes,
+      vehicleDescriptor: vehicleDescriptors,
+      stopTimeUpdate: stopTimeUpdates,
+      scheduledStopTime: stopTimes,
+      stop: stops,
+    })
     .from(entities)
-    .where(eq(entities.snapshotId, snapshot.id))
-    .innerJoin(tripUpdates, eq(entities.tripUpdateId, tripUpdates.id));
-
-  // Filter for trips that stop at this station
-  const departures = [];
-
-  for (const row of tripUpdateEntities) {
-    const tripUpdate = row.trip_updates;
-    const entity = row.entities;
-
-    // Get trip descriptor
-    const tripDescriptor = await db
-      .select()
-      .from(tripDescriptors)
-      .where(
-        and(
-          eq(tripDescriptors.providerId, providerId),
-          eq(tripDescriptors.tripId, tripUpdate.entityId)
-        )
+    .innerJoin(tripUpdates, eq(entities.tripUpdateId, tripUpdates.id))
+    .innerJoin(
+      tripDescriptors,
+      and(
+        eq(tripDescriptors.providerId, providerId),
+        eq(tripDescriptors.tripId, tripUpdates.entityId)
       )
-      .limit(1)
-      .then((rows) => rows[0]);
-
-    if (!tripDescriptor) continue;
-
-    // Get static trip data
-    const staticTrip = await db
-      .select()
-      .from(trips)
-      .where(
-        and(
-          eq(trips.providerId, providerId),
-          eq(trips.tripId, tripDescriptor.tripId)
-        )
+    )
+    .leftJoin(
+      trips,
+      and(
+        eq(trips.providerId, providerId),
+        eq(trips.tripId, tripDescriptors.tripId)
       )
-      .limit(1)
-      .then((rows) => rows[0]);
+    )
+    .leftJoin(
+      routes,
+      and(
+        eq(routes.providerId, providerId),
+        eq(routes.routeId, tripDescriptors.routeId)
+      )
+    )
+    .leftJoin(
+      vehicleDescriptors,
+      and(
+        eq(vehicleDescriptors.providerId, providerId),
+        eq(vehicleDescriptors.vehicleId, tripUpdates.entityId)
+      )
+    )
+    .innerJoin(
+      stopTimeUpdates,
+      eq(stopTimeUpdates.tripUpdateId, tripUpdates.id)
+    )
+    .innerJoin(
+      stopTimes,
+      and(
+        eq(stopTimes.providerId, providerId),
+        eq(stopTimes.tripId, tripDescriptors.tripId),
+        eq(stopTimes.stopSequence, stopTimeUpdates.stopSequence)
+      )
+    )
+    .innerJoin(
+      stops,
+      and(
+        eq(stops.providerId, providerId),
+        eq(stops.stopId, stopTimes.stopId)
+      )
+    )
+    .where(
+      and(
+        eq(entities.snapshotId, snapshot.id),
+        sql`${stopTimes.stopId} IN ${stationStopIds}`
+      )
+    );
 
-    // Get route data
-    const route = tripDescriptor.routeId
+  // Get all stop time events for the results
+  const stopTimeUpdateIds = departureResults.map((row) => row.stopTimeUpdate.id);
+  const eventsResults =
+    stopTimeUpdateIds.length > 0
       ? await db
           .select()
-          .from(routes)
-          .where(
-            and(
-              eq(routes.providerId, providerId),
-              eq(routes.routeId, tripDescriptor.routeId)
-            )
-          )
-          .limit(1)
-          .then((rows) => rows[0])
-      : null;
+          .from(stopTimeEvents)
+          .where(sql`${stopTimeEvents.stopTimeUpdateId} IN ${stopTimeUpdateIds}`)
+      : [];
 
-    // Get vehicle descriptor
-    const vehicleDescriptor = await db
-      .select()
-      .from(vehicleDescriptors)
-      .where(
-        and(
-          eq(vehicleDescriptors.providerId, providerId),
-          eq(vehicleDescriptors.vehicleId, tripUpdate.entityId)
-        )
-      )
-      .limit(1)
-      .then((rows) => rows[0]);
-
-    // Get stop time updates for this trip
-    const stopTimeUpdateRecords = await db
-      .select()
-      .from(stopTimeUpdates)
-      .where(eq(stopTimeUpdates.tripUpdateId, tripUpdate.id));
-
-    // Find the stop time update for our station
-    for (const stu of stopTimeUpdateRecords) {
-      // Get scheduled stop time
-      const scheduledStopTime = await db
-        .select()
-        .from(stopTimes)
-        .where(
-          and(
-            eq(stopTimes.providerId, providerId),
-            eq(stopTimes.tripId, tripDescriptor.tripId),
-            eq(stopTimes.stopSequence, stu.stopSequence || 0)
-          )
-        )
-        .limit(1)
-        .then((rows) => rows[0]);
-
-      if (!scheduledStopTime) continue;
-
-      // Check if this stop matches our station
-      const matchesStation = stationStops.some(
-        (s) => s.stopId === scheduledStopTime.stopId
-      );
-
-      if (!matchesStation) continue;
-
-      // Get the stop details
-      const stop = await db
-        .select()
-        .from(stops)
-        .where(
-          and(
-            eq(stops.providerId, providerId),
-            eq(stops.stopId, scheduledStopTime.stopId)
-          )
-        )
-        .limit(1)
-        .then((rows) => rows[0]);
-
-      // Get departure time event
-      const events = await db
-        .select()
-        .from(stopTimeEvents)
-        .where(eq(stopTimeEvents.stopTimeUpdateId, stu.id));
-
-      const departure = events.find((e) => e.type === 1); // departure
-      const arrival = events.find((e) => e.type === 0); // arrival
-
-      // Calculate minutes until departure
-      let minutesUntilDeparture = null;
-      let departureTime = null;
-
-      if (departure?.time) {
-        departureTime = new Date(departure.time);
-        minutesUntilDeparture = Math.round(
-          (departureTime.getTime() - snapshot.feedTimestamp.getTime()) / 1000 / 60
-        );
-      } else if (scheduledStopTime.departureTime && departure?.delay) {
-        // Calculate from scheduled time + delay
-        const [hours, minutes, seconds] = scheduledStopTime.departureTime.split(':').map(Number);
-        const scheduled = new Date(snapshot.feedTimestamp);
-        scheduled.setHours(hours, minutes, seconds, 0);
-        departureTime = new Date(scheduled.getTime() + (departure.delay * 1000));
-        minutesUntilDeparture = Math.round(
-          (departureTime.getTime() - snapshot.feedTimestamp.getTime()) / 1000 / 60
-        );
-      }
-
-      departures.push({
-        destination: staticTrip?.tripHeadsign || "Unknown",
-        route: {
-          route_id: route?.routeId,
-          route_name: route?.routeShortName,
-          color: route?.routeColor,
-          text_color: route?.routeTextColor,
-        },
-        platform: stop?.platformCode,
-        minutes: minutesUntilDeparture,
-        scheduled_departure: scheduledStopTime.departureTime,
-        delay: departure?.delay || 0,
-        train_length: null, // BART doesn't provide this in GTFS-RT
-        bikes_allowed: true, // BART allows bikes on all trains
-        vehicle_label: vehicleDescriptor?.label,
-        stop_sequence: stu.stopSequence,
-      });
+  // Create events map
+  const stopTimeEventsMap = new Map<number, typeof eventsResults>();
+  for (const event of eventsResults) {
+    const key = event.stopTimeUpdateId;
+    if (!stopTimeEventsMap.has(key)) {
+      stopTimeEventsMap.set(key, []);
     }
+    stopTimeEventsMap.get(key)!.push(event);
   }
+
+  // Build departures
+  const departures = departureResults.map((row) => {
+    const events = stopTimeEventsMap.get(row.stopTimeUpdate.id) || [];
+    const departure = events.find((e) => e.type === 1);
+    const arrival = events.find((e) => e.type === 0);
+
+    let minutesUntilDeparture = null;
+    let departureTime = null;
+
+    if (departure?.time) {
+      departureTime = new Date(departure.time);
+      minutesUntilDeparture = Math.round(
+        (departureTime.getTime() - snapshot.feedTimestamp.getTime()) / 1000 / 60
+      );
+    } else if (row.scheduledStopTime.departureTime && departure?.delay) {
+      const [hours, minutes, seconds] = row.scheduledStopTime.departureTime
+        .split(":")
+        .map(Number);
+      const scheduled = new Date(snapshot.feedTimestamp);
+      scheduled.setHours(hours, minutes, seconds, 0);
+      departureTime = new Date(scheduled.getTime() + departure.delay * 1000);
+      minutesUntilDeparture = Math.round(
+        (departureTime.getTime() - snapshot.feedTimestamp.getTime()) / 1000 / 60
+      );
+    }
+
+    return {
+      destination: row.staticTrip?.tripHeadsign || "Unknown",
+      route: {
+        route_id: row.route?.routeId,
+        route_name: row.route?.routeShortName,
+        color: row.route?.routeColor,
+        text_color: row.route?.routeTextColor,
+      },
+      platform: row.stop?.platformCode,
+      minutes: minutesUntilDeparture,
+      scheduled_departure: row.scheduledStopTime.departureTime,
+      delay: departure?.delay || 0,
+      train_length: null,
+      bikes_allowed: true,
+      vehicle_label: row.vehicleDescriptor?.label,
+      stop_sequence: row.stopTimeUpdate.stopSequence,
+    };
+  });
 
   // Sort by minutes until departure
   departures.sort((a, b) => {
@@ -242,11 +220,25 @@ export async function departuresHandler(c: Context) {
     return a.minutes - b.minutes;
   });
 
+  const platformCodes = stationStops
+    .map((stop) => stop.platformCode)
+    .filter((code): code is string => Boolean(code));
+
+  const uniquePlatforms = Array.from(new Set(platformCodes)).sort((a, b) => {
+    const numA = Number(a);
+    const numB = Number(b);
+    if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+      return numA - numB;
+    }
+    return a.localeCompare(b);
+  });
+
   return c.json({
     station: stationCode,
     platform: platform || "all",
     station_name: stationStops[0]?.stopName,
     timestamp: snapshot.feedTimestamp,
+    platforms: uniquePlatforms,
     departures: departures,
   });
 }

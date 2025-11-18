@@ -18,7 +18,7 @@
     },
   ],
   "triggers": {
-    "crons": ["* * * * *"],
+    "crons": ["*/5 * * * *"],
   },
   "d1_databases": [
     {
@@ -26,6 +26,7 @@
       "database_name": "openbart",
       "database_id": "1616450f-5993-40d2-a760-76d6e9caef69",
       "migrations_dir": "./migrations",
+      "remote": true,
     },
   ],
   "r2_buckets": [
