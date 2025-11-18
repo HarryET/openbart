@@ -34,7 +34,7 @@ export const queueHandler: ExportedHandlerQueueHandler<
           buffer,
         );
 
-        // Insert snapshot
+        // Insert snapshot (skip if already exists)
         const [snapshot] = await db
           .insert(snapshots)
           .values({
@@ -45,7 +45,15 @@ export const queueHandler: ExportedHandlerQueueHandler<
             ...(feed.header.feedVersion && { feedVersion: feed.header.feedVersion }),
             entitiesCount: feed.entity.length,
           })
+          .onConflictDoNothing()
           .returning();
+
+        // Skip if snapshot already exists
+        if (!snapshot) {
+          console.log(`Snapshot already exists for ${providerId} at ${feed.header.timestamp}`);
+          message.ack();
+          return;
+        }
 
         // Store raw protobuf in R2
         await env.PROTOBUF_BUCKET.put(
