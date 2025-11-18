@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>OpenBART - Real-Time Train Tracker</title>
+
+        <!-- HTMX -->
+        <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+
+        <!-- Tailwind CSS v4 -->
+        <style type="text/tailwindcss">
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Regular.woff2") format("woff2");
+                font-weight: 400;
+                font-style: normal;
+            }
+
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Bold.woff2") format("woff2");
+                font-weight: 700;
+                font-style: normal;
+            }
+
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Oblique.woff2") format("woff2");
+                font-weight: 400;
+                font-style: italic;
+            }
+
+            @font-face {
+                font-family: "Berkeley Mono";
+                src: url("/fonts/BerkeleyMono-Bold-Oblique.woff2")
+                    format("woff2");
+                font-weight: 700;
+                font-style: italic;
+            }
+
+            @theme {
+                --font-mono: "Berkeley Mono", "Courier New", monospace;
+
+                /* Colors from usgc_reticle_it */
+                --color-bg: #ffffff;
+                --color-fg: #1a1a1a;
+                --color-dim: #666666;
+
+                /* Accents */
+                --color-red: #cd0427;
+                --color-green: #459a63;
+                --color-cyan: #33f676;
+                --color-yellow: #f5c44f;
+                --color-blue: #6b40ef;
+                --color-magenta: #e93d8e;
+            }
+
+            @layer base {
+                * {
+                    font-family: var(--font-mono);
+                }
+
+                body {
+                    background: var(--color-bg);
+                    color: var(--color-fg);
+                }
+            }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    </head>
+    <body class="min-h-screen p-6 flex flex-col">
+        <div class="w-full flex-grow">
+            <!-- Header -->
+            <header class="mb-6">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="text-base font-bold">openbart</div>
+                        <div class="text-xs" style="color: var(--color-dim)">
+                            gtfs realtime tracker
+                        </div>
+                    </div>
+                    <div class="text-xs" style="color: var(--color-dim)">
+                        <span id="current-time">--:--:--</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Controls -->
+            <div class="mb-6 flex gap-3 text-xs">
+                <button
+                    class="px-3 py-1.5 border border-black hover:bg-black hover:text-white transition-colors"
+                    hx-get="/bart/vehicle-positions"
+                    hx-target="#train-list"
+                    hx-swap="innerHTML"
+                    hx-trigger="click, load"
+                >
+                    refresh
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="mb-6 flex gap-8 text-xs">
+                <div>
+                    <div style="color: var(--color-dim)">trains</div>
+                    <div id="train-count" class="text-lg font-bold">--</div>
+                </div>
+                <div>
+                    <div style="color: var(--color-dim)">last updated</div>
+                    <div id="last-update" class="text-sm">--</div>
+                </div>
+            </div>
+
+            <!-- Train List -->
+            <div class="border-t border-black pt-6">
+                <div id="train-list">
+                    <div class="text-xs" style="color: var(--color-dim)">
+                        loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scripts -->
+        <script>
+            // Update clock
+            function updateClock() {
+                const now = new Date();
+                document.getElementById("current-time").textContent =
+                    now.toLocaleTimeString();
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // Handle HTMX responses
+            document.body.addEventListener("htmx:afterSwap", function (event) {
+                if (event.detail.target.id === "train-list") {
+                    try {
+                        const data = JSON.parse(event.detail.xhr.responseText);
+
+                        // Update stats
+                        if (data.vehicle_positions) {
+                            document.getElementById("train-count").textContent =
+                                data.vehicle_positions.length;
+                        }
+
+                        if (data.snapshot) {
+                            const timestamp = new Date(data.snapshot.timestamp);
+                            document.getElementById("last-update").textContent =
+                                timestamp.toLocaleTimeString();
+                        }
+
+                        // Build train list
+                        let html = "";
+
+                        if (
+                            !data.vehicle_positions ||
+                            data.vehicle_positions.length === 0
+                        ) {
+                            html =
+                                '<div class="text-xs" style="color: var(--color-dim)">no trains currently tracked</div>';
+                        } else {
+                            html += '<div class="space-y-4 text-xs">';
+
+                            data.vehicle_positions.forEach((vp) => {
+                                const statusMap = {
+                                    0: "incoming",
+                                    1: "stopped",
+                                    2: "in transit",
+                                };
+                                const occMap = {
+                                    0: "empty",
+                                    1: "few seats",
+                                    2: "half full",
+                                    3: "standing room",
+                                    4: "full",
+                                    5: "crushed",
+                                    6: "at limit",
+                                    7: "n/a",
+                                };
+
+                                const train =
+                                    vp.vehicle?.label ||
+                                    vp.vehicle?.id ||
+                                    "unknown";
+                                const route = vp.trip?.route_id || "--";
+                                const stop = vp.stop_id || "--";
+                                const status =
+                                    statusMap[vp.current_status] || "unknown";
+                                const occ =
+                                    occMap[vp.occupancy_status] || "n/a";
+
+                                let pos = "--";
+                                if (vp.position) {
+                                    const lat = parseFloat(
+                                        vp.position.latitude,
+                                    ).toFixed(4);
+                                    const lon = parseFloat(
+                                        vp.position.longitude,
+                                    ).toFixed(4);
+                                    pos = `${lat}, ${lon}`;
+                                }
+
+                                html +=
+                                    '<div class="border-b border-gray-200 pb-4">';
+                                html += `<div class="font-bold mb-1" style="color: var(--color-green)">${train}</div>`;
+                                html += '<div class="space-y-0.5">';
+                                html += `<div><span style="color: var(--color-dim)">route:</span> ${route}</div>`;
+                                html += `<div><span style="color: var(--color-dim)">stop:</span> ${stop}</div>`;
+                                html += `<div><span style="color: var(--color-dim)">status:</span> <span style="color: var(--color-yellow)">${status}</span></div>`;
+                                html += `<div><span style="color: var(--color-dim)">occupancy:</span> ${occ}</div>`;
+                                html += `<div><span style="color: var(--color-dim)">position:</span> <span class="text-xs" style="color: var(--color-cyan)">${pos}</span></div>`;
+                                html += "</div>";
+                                html += "</div>";
+                            });
+
+                            html += "</div>";
+                        }
+
+                        event.detail.target.innerHTML = html;
+                    } catch (e) {
+                        event.detail.target.innerHTML = `<div class="text-xs" style="color: var(--color-red)">error: ${e.message}</div>`;
+                    }
+                }
+            });
+
+            // Handle errors
+            document.body.addEventListener(
+                "htmx:responseError",
+                function (event) {
+                    if (event.detail.target.id === "train-list") {
+                        event.detail.target.innerHTML = `
+                            <div class="text-xs" style="color: var(--color-red)">
+                                error: unable to fetch data (${event.detail.xhr.status})
+                            </div>
+                        `;
+                    }
+                },
+            );
+        </script>
+
+        <!-- Footer -->
+        <footer
+            class="w-full flex justify-between text-xs pt-6"
+            style="color: var(--color-dim)"
+        >
+            <div>
+                Created by
+                <a
+                    class="hover:bg-black hover:text-white"
+                    href="https://harrybairstow.com?utm_source=openbart"
+                    >Harry</a
+                >
+            </div>
+            <a
+                class="hover:bg-black hover:text-white"
+                href="https://github.com/harryet/openbart"
+                >Github</a
+            >
+        </footer>
+    </body>
+</html>
