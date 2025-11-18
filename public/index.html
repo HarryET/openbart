@@ -95,7 +95,7 @@
             <div class="mb-6 flex gap-3 text-xs">
                 <button
                     class="px-3 py-1.5 border border-black hover:bg-black hover:text-white transition-colors"
-                    hx-get="/bart/vehicle-positions"
+                    hx-get="/bart/trip-updates"
                     hx-target="#train-list"
                     hx-swap="innerHTML"
                     hx-trigger="click, load"
@@ -144,9 +144,9 @@
                         const data = JSON.parse(event.detail.xhr.responseText);
 
                         // Update stats
-                        if (data.vehicle_positions) {
+                        if (data.trip_updates) {
                             document.getElementById("train-count").textContent =
-                                data.vehicle_positions.length;
+                                data.trip_updates.length;
                         }
 
                         if (data.snapshot) {
@@ -159,62 +159,39 @@
                         let html = "";
 
                         if (
-                            !data.vehicle_positions ||
-                            data.vehicle_positions.length === 0
+                            !data.trip_updates ||
+                            data.trip_updates.length === 0
                         ) {
                             html =
                                 '<div class="text-xs" style="color: var(--color-dim)">no trains currently tracked</div>';
                         } else {
                             html += '<div class="space-y-4 text-xs">';
 
-                            data.vehicle_positions.forEach((vp) => {
-                                const statusMap = {
-                                    0: "incoming",
-                                    1: "stopped",
-                                    2: "in transit",
-                                };
-                                const occMap = {
-                                    0: "empty",
-                                    1: "few seats",
-                                    2: "half full",
-                                    3: "standing room",
-                                    4: "full",
-                                    5: "crushed",
-                                    6: "at limit",
-                                    7: "n/a",
-                                };
+                            data.trip_updates.forEach((trip) => {
+                                const trainId = trip.vehicle?.label || trip.trip?.trip_id || "unknown";
+                                const routeName = trip.route?.route_name || trip.trip?.route_id || "--";
+                                const headsign = trip.trip?.headsign || "--";
+                                const delay = trip.delay ? `${trip.delay}s` : "on time";
+                                const routeColor = trip.route?.color || "999999";
 
-                                const train =
-                                    vp.vehicle?.label ||
-                                    vp.vehicle?.id ||
-                                    "unknown";
-                                const route = vp.trip?.route_id || "--";
-                                const stop = vp.stop_id || "--";
-                                const status =
-                                    statusMap[vp.current_status] || "unknown";
-                                const occ =
-                                    occMap[vp.occupancy_status] || "n/a";
+                                html += '<div class="border-b border-gray-200 pb-4">';
+                                html += `<div class="font-bold mb-1" style="color: #${routeColor}">${routeName}</div>`;
+                                html += '<div class="space-y-0.5">';
+                                html += `<div><span style="color: var(--color-dim)">destination:</span> ${headsign}</div>`;
+                                html += `<div><span style="color: var(--color-dim)">train:</span> ${trainId}</div>`;
+                                html += `<div><span style="color: var(--color-dim)">delay:</span> <span style="color: ${trip.delay && trip.delay > 60 ? 'var(--color-red)' : 'var(--color-green)'}">${delay}</span></div>`;
 
-                                let pos = "--";
-                                if (vp.position) {
-                                    const lat = parseFloat(
-                                        vp.position.latitude,
-                                    ).toFixed(4);
-                                    const lon = parseFloat(
-                                        vp.position.longitude,
-                                    ).toFixed(4);
-                                    pos = `${lat}, ${lon}`;
+                                // Show next few stops
+                                if (trip.stop_time_updates && trip.stop_time_updates.length > 0) {
+                                    html += `<div class="mt-2"><span style="color: var(--color-dim)">upcoming stops:</span></div>`;
+                                    trip.stop_time_updates.slice(0, 3).forEach((stu) => {
+                                        const stopName = stu.stop_name || stu.stop_id || "?";
+                                        const platform = stu.platform ? ` (platform ${stu.platform})` : "";
+                                        const arrivalDelay = stu.arrival?.delay ? `+${stu.arrival.delay}s` : "";
+                                        html += `<div class="ml-3" style="color: var(--color-dim)">→ ${stopName}${platform} <span style="color: var(--color-yellow)">${arrivalDelay}</span></div>`;
+                                    });
                                 }
 
-                                html +=
-                                    '<div class="border-b border-gray-200 pb-4">';
-                                html += `<div class="font-bold mb-1" style="color: var(--color-green)">${train}</div>`;
-                                html += '<div class="space-y-0.5">';
-                                html += `<div><span style="color: var(--color-dim)">route:</span> ${route}</div>`;
-                                html += `<div><span style="color: var(--color-dim)">stop:</span> ${stop}</div>`;
-                                html += `<div><span style="color: var(--color-dim)">status:</span> <span style="color: var(--color-yellow)">${status}</span></div>`;
-                                html += `<div><span style="color: var(--color-dim)">occupancy:</span> ${occ}</div>`;
-                                html += `<div><span style="color: var(--color-dim)">position:</span> <span class="text-xs" style="color: var(--color-cyan)">${pos}</span></div>`;
                                 html += "</div>";
                                 html += "</div>";
                             });

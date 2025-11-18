@@ -7,8 +7,8 @@ export const PROVIDER_CONFIG: Record<
   }
 > = {
   bart: {
-    tripupdates_url: "http://api.bart.gov/gtfsrt/tripupdate.aspx",
-    alerts_url: "http://api.bart.gov/gtfsrt/alerts.aspx",
+    tripupdates_url: "https://api.bart.gov/gtfsrt/tripupdate.aspx",
+    alerts_url: "https://api.bart.gov/gtfsrt/alerts.aspx",
     headers: {},
   },
 };

@@ -383,6 +383,109 @@ export const translatedStrings = sqliteTable(
   }),
 );
 
+// GTFS Static Tables (schedule data)
+
+// Routes (lines: Yellow, Orange, Red, etc.)
+export const routes = sqliteTable(
+  "routes",
+  {
+    providerId: text("provider_id").notNull(),
+    routeId: text("route_id").notNull(), // e.g., "1", "2", "3"
+    routeShortName: text("route_short_name"), // e.g., "Yellow-S"
+    routeLongName: text("route_long_name"), // e.g., "Antioch to SF Int'l Airport"
+    routeType: integer("route_type").notNull(), // 1=subway/metro
+    routeColor: text("route_color"), // hex color without #
+    routeTextColor: text("route_text_color"),
+    routeUrl: text("route_url"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.providerId, table.routeId] }),
+    providerIdx: index("routes_provider_idx").on(table.providerId),
+  }),
+);
+
+// Stops (stations and platforms)
+export const stops = sqliteTable(
+  "stops",
+  {
+    providerId: text("provider_id").notNull(),
+    stopId: text("stop_id").notNull(), // e.g., "A10-1"
+    stopCode: text("stop_code"),
+    stopName: text("stop_name").notNull(), // e.g., "Lake Merritt"
+    stopLat: text("stop_lat"), // decimal as text
+    stopLon: text("stop_lon"),
+    zoneId: text("zone_id"), // e.g., "LAKE"
+    parentStation: text("parent_station"),
+    platformCode: text("platform_code"), // e.g., "1", "2"
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.providerId, table.stopId] }),
+    providerIdx: index("stops_provider_idx").on(table.providerId),
+    geoIdx: index("stops_geo_idx").on(table.stopLat, table.stopLon),
+  }),
+);
+
+// Trips (scheduled trips)
+export const trips = sqliteTable(
+  "trips",
+  {
+    providerId: text("provider_id").notNull(),
+    tripId: text("trip_id").notNull(),
+    routeId: text("route_id").notNull(),
+    serviceId: text("service_id").notNull(), // calendar reference
+    tripHeadsign: text("trip_headsign"), // e.g., "OAK Airport / SF / Daly City"
+    directionId: integer("direction_id"), // 0 or 1
+    blockId: text("block_id"),
+    shapeId: text("shape_id"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.providerId, table.tripId] }),
+    providerIdx: index("trips_provider_idx").on(table.providerId),
+    routeIdx: index("trips_route_idx").on(table.providerId, table.routeId),
+  }),
+);
+
+// Stop Times (scheduled arrival/departure at each stop)
+export const stopTimes = sqliteTable(
+  "stop_times",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    providerId: text("provider_id").notNull(),
+    tripId: text("trip_id").notNull(),
+    stopId: text("stop_id").notNull(),
+    stopSequence: integer("stop_sequence").notNull(),
+    arrivalTime: text("arrival_time"), // HH:MM:SS
+    departureTime: text("departure_time"),
+    stopHeadsign: text("stop_headsign"),
+  },
+  (table) => ({
+    providerIdx: index("stop_times_provider_idx").on(table.providerId),
+    tripIdx: index("stop_times_trip_idx").on(table.providerId, table.tripId),
+    stopIdx: index("stop_times_stop_idx").on(table.providerId, table.stopId),
+  }),
+);
+
+// Calendar (service schedules)
+export const calendar = sqliteTable(
+  "calendar",
+  {
+    providerId: text("provider_id").notNull(),
+    serviceId: text("service_id").notNull(),
+    monday: integer("monday").notNull(), // 0 or 1
+    tuesday: integer("tuesday").notNull(),
+    wednesday: integer("wednesday").notNull(),
+    thursday: integer("thursday").notNull(),
+    friday: integer("friday").notNull(),
+    saturday: integer("saturday").notNull(),
+    sunday: integer("sunday").notNull(),
+    startDate: text("start_date").notNull(), // YYYYMMDD
+    endDate: text("end_date").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.providerId, table.serviceId] }),
+  }),
+);
+
 // Export all for schema
 export const gtfsRealtimeSchema = {
   providers,
@@ -399,4 +502,10 @@ export const gtfsRealtimeSchema = {
   timeRanges,
   entitySelectors,
   translatedStrings,
+  // Static GTFS
+  routes,
+  stops,
+  trips,
+  stopTimes,
+  calendar,
 };

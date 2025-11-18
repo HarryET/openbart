@@ -42,7 +42,7 @@ export const queueHandler: ExportedHandlerQueueHandler<
             feedTimestamp: new Date(Number(feed.header.timestamp) * 1000),
             gtfsRealtimeVersion: feed.header.gtfsRealtimeVersion || "2.0",
             incrementality: feed.header.incrementality || 0,
-            feedVersion: undefined,
+            ...(feed.header.feedVersion && { feedVersion: feed.header.feedVersion }),
             rawFeed: buffer.toString(),
             entitiesCount: feed.entity.length,
           })
