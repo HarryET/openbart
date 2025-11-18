@@ -67,9 +67,10 @@
                 }
             }
 
-            html, body {
+            html,
+            body {
                 width: 100%;
-                height: 100%:
+                height: 100%;
             }
         </style>
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
@@ -168,28 +169,51 @@
                             html += '<div class="space-y-4 text-xs">';
 
                             data.trip_updates.forEach((trip) => {
-                                const trainId = trip.vehicle?.label || trip.trip?.trip_id || "unknown";
-                                const routeName = trip.route?.route_name || trip.trip?.route_id || "--";
+                                const trainId =
+                                    trip.vehicle?.label ||
+                                    trip.trip?.trip_id ||
+                                    "unknown";
+                                const routeName =
+                                    trip.route?.route_name ||
+                                    trip.trip?.route_id ||
+                                    "--";
                                 const headsign = trip.trip?.headsign || "--";
-                                const delay = trip.delay ? `${trip.delay}s` : "on time";
-                                const routeColor = trip.route?.color || "999999";
+                                const delay = trip.delay
+                                    ? `${trip.delay}s`
+                                    : "on time";
+                                const routeColor =
+                                    trip.route?.color || "999999";
 
-                                html += '<div class="border-b border-gray-200 pb-4">';
+                                html +=
+                                    '<div class="border-b border-gray-200 pb-4">';
                                 html += `<div class="font-bold mb-1" style="color: #${routeColor}">${routeName}</div>`;
                                 html += '<div class="space-y-0.5">';
                                 html += `<div><span style="color: var(--color-dim)">destination:</span> ${headsign}</div>`;
                                 html += `<div><span style="color: var(--color-dim)">train:</span> ${trainId}</div>`;
-                                html += `<div><span style="color: var(--color-dim)">delay:</span> <span style="color: ${trip.delay && trip.delay > 60 ? 'var(--color-red)' : 'var(--color-green)'}">${delay}</span></div>`;
+                                html += `<div><span style="color: var(--color-dim)">delay:</span> <span style="color: ${trip.delay && trip.delay > 60 ? "var(--color-red)" : "var(--color-green)"}">${delay}</span></div>`;
 
                                 // Show next few stops
-                                if (trip.stop_time_updates && trip.stop_time_updates.length > 0) {
+                                if (
+                                    trip.stop_time_updates &&
+                                    trip.stop_time_updates.length > 0
+                                ) {
                                     html += `<div class="mt-2"><span style="color: var(--color-dim)">upcoming stops:</span></div>`;
-                                    trip.stop_time_updates.slice(0, 3).forEach((stu) => {
-                                        const stopName = stu.stop_name || stu.stop_id || "?";
-                                        const platform = stu.platform ? ` (platform ${stu.platform})` : "";
-                                        const arrivalDelay = stu.arrival?.delay ? `+${stu.arrival.delay}s` : "";
-                                        html += `<div class="ml-3" style="color: var(--color-dim)">→ ${stopName}${platform} <span style="color: var(--color-yellow)">${arrivalDelay}</span></div>`;
-                                    });
+                                    trip.stop_time_updates
+                                        .slice(0, 3)
+                                        .forEach((stu) => {
+                                            const stopName =
+                                                stu.stop_name ||
+                                                stu.stop_id ||
+                                                "?";
+                                            const platform = stu.platform
+                                                ? ` (platform ${stu.platform})`
+                                                : "";
+                                            const arrivalDelay = stu.arrival
+                                                ?.delay
+                                                ? `+${stu.arrival.delay}s`
+                                                : "";
+                                            html += `<div class="ml-3" style="color: var(--color-dim)">→ ${stopName}${platform} <span style="color: var(--color-yellow)">${arrivalDelay}</span></div>`;
+                                        });
                                 }
 
                                 html += "</div>";
