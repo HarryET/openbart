@@ -20,8 +20,8 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "c6abb18f50e1497ab3b3664f99986266",
-      "localConnectionString": "postgresql://postgres:password@localhost:5432/openbart",
+      "id": "2fc11dbe25074f14aadbfec9d7b73e8d",
+      "localConnectionString": "mysql://root:password@localhost:3306/openbart",
     },
   ],
   "placement": { "mode": "smart" },

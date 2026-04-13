@@ -1,10 +1,8 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import * as schema from "./schema";
 
 export function createDb(env: Env) {
-  const connectionString = env.HYPERDRIVE.connectionString;
-
-  const pool = new pg.Pool({ connectionString });
-  return drizzle(pool, { schema });
+  const pool = mysql.createPool({ uri: env.HYPERDRIVE.connectionString });
+  return drizzle(pool, { schema, mode: "default" });
 }

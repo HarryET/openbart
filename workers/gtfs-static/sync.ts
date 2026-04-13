@@ -28,7 +28,6 @@ import {
 } from "./extract";
 
 type Db = ReturnType<typeof createDb>;
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export async function syncStaticGtfs(db: Db) {
 
@@ -54,66 +53,53 @@ export async function syncStaticGtfs(db: Db) {
   const oldVersion = currentFeed?.feedVersion ?? null;
   console.log(`Upgrading feed: ${oldVersion ?? "(empty)"} → ${newVersion}`);
 
-  await db.transaction(async (tx) => {
-    // Order matters: respect FK dependencies
-    //
-    // FK chain: stop_times → trips → routes → agencies
-    //           stop_times → stops
-    //
-    // 1. Root tables (no FK parents)
-    console.log("Syncing agencies...");
-    await syncAgencies(tx, extractAgencies(data.agency), oldVersion, newVersion);
-    console.log("Syncing calendar...");
-    await syncCalendarTable(tx, extractCalendar(data.calendar), oldVersion, newVersion);
+  // No transaction wrapper — PlanetScale (Vitess) has a 20s transaction timeout
+  // which is too short for bulk inserts. No FK constraints, so atomicity isn't required.
 
-    // 2. Tables depending on agencies
-    console.log("Syncing routes...");
-    await syncRoutes(tx, extractRoutes(data.routes), oldVersion, newVersion);
+  console.log("Syncing agencies...");
+  await syncAgencies(db, extractAgencies(data.agency), oldVersion, newVersion);
+  console.log("Syncing calendar...");
+  await syncCalendarTable(db, extractCalendar(data.calendar), oldVersion, newVersion);
 
-    // 3. Stops (root table, no FK parents)
-    console.log("Syncing stops...");
-    await syncStops(tx, extractStops(data.stops), oldVersion, newVersion);
+  console.log("Syncing routes...");
+  await syncRoutes(db, extractRoutes(data.routes), oldVersion, newVersion);
 
-    // 4. Delete stop_times first (FK child of trips + stops)
-    const stopTimesData = extractStopTimes(data.stopTimes);
-    console.log(`Clearing stop_times...`);
-    const stopTimesOldCount = await deleteAll(tx, stopTimes);
+  console.log("Syncing stops...");
+  await syncStops(db, extractStops(data.stops), oldVersion, newVersion);
 
-    // 5. Sync trips (FK → routes). Safe now that stop_times is empty.
-    console.log("Syncing trips...");
-    await syncTrips(tx, extractTrips(data.trips), oldVersion, newVersion);
+  const stopTimesData = extractStopTimes(data.stopTimes);
+  console.log(`Clearing stop_times...`);
+  const stopTimesOldCount = await deleteAll(db, stopTimes);
 
-    // 6. Reinsert stop_times (parents trips + stops now stable)
-    console.log(`Inserting ${stopTimesData.length} stop_times...`);
-    await batchInsert(tx, stopTimes, stopTimesData);
-    await writeDeleteAndReinsertAudit(tx, "stop_times", stopTimesOldCount, stopTimesData.length, oldVersion, newVersion);
+  console.log("Syncing trips...");
+  await syncTrips(db, extractTrips(data.trips), oldVersion, newVersion);
 
-    // 7. Shapes — no FK deps, delete and reinsert
-    const shapesData = extractShapes(data.shapes);
-    console.log(`Syncing shapes (${shapesData.length} rows)...`);
-    await deleteAndReinsert(tx, shapes, shapesData, "shapes", oldVersion, newVersion);
+  console.log(`Inserting ${stopTimesData.length} stop_times...`);
+  await batchInsert(db, stopTimes, stopTimesData);
+  await writeDeleteAndReinsertAudit(db, "stop_times", stopTimesOldCount, stopTimesData.length, oldVersion, newVersion);
 
-    // 8. Tables without natural PK — delete and reinsert
-    console.log("Syncing calendar_dates...");
-    await deleteAndReinsert(tx, calendarDates, extractCalendarDates(data.calendarDates), "calendar_dates", oldVersion, newVersion);
-    console.log("Syncing transfers...");
-    await deleteAndReinsert(tx, transfers, extractTransfers(data.transfers), "transfers", oldVersion, newVersion);
+  const shapesData = extractShapes(data.shapes);
+  console.log(`Syncing shapes (${shapesData.length} rows)...`);
+  await deleteAndReinsert(db, shapes, shapesData, "shapes", oldVersion, newVersion);
 
-    // 9. Record new feed version
-    console.log("Recording feed version...");
-    await tx.insert(feedInfo).values(feedInfoRows[0]);
-  });
+  console.log("Syncing calendar_dates...");
+  await deleteAndReinsert(db, calendarDates, extractCalendarDates(data.calendarDates), "calendar_dates", oldVersion, newVersion);
+  console.log("Syncing transfers...");
+  await deleteAndReinsert(db, transfers, extractTransfers(data.transfers), "transfers", oldVersion, newVersion);
+
+  console.log("Recording feed version...");
+  await db.insert(feedInfo).values(feedInfoRows[0]);
 }
 
 // --- Per-table sync functions for PK-based tables ---
 
 async function syncAgencies(
-  tx: Tx,
+  db: Db,
   newRows: ReturnType<typeof extractAgencies>,
   oldVersion: string | null,
   newVersion: string,
 ) {
-  const existing = await tx.select().from(agencies);
+  const existing = await db.select().from(agencies);
   const existingMap = new Map(existing.map((r) => [r.id, r]));
   const newMap = new Map(newRows.map((r) => [r.id, r]));
 
@@ -122,30 +108,30 @@ async function syncAgencies(
   for (const [id, row] of newMap) {
     const old = existingMap.get(id);
     if (!old) {
-      await tx.insert(agencies).values(row);
+      await db.insert(agencies).values(row);
       audit.added(id, row);
     } else if (rowChanged(old, row)) {
-      await tx.update(agencies).set(row).where(eq(agencies.id, id));
+      await db.update(agencies).set(row).where(eq(agencies.id, id));
       audit.modified(id, old, row);
     }
   }
   for (const [id, old] of existingMap) {
     if (!newMap.has(id)) {
-      await tx.delete(agencies).where(eq(agencies.id, id));
+      await db.delete(agencies).where(eq(agencies.id, id));
       audit.removed(id, old);
     }
   }
 
-  await writeAudit(tx, audit, "agencies", oldVersion, newVersion);
+  await writeAudit(db, audit, "agencies", oldVersion, newVersion);
 }
 
 async function syncRoutes(
-  tx: Tx,
+  db: Db,
   newRows: ReturnType<typeof extractRoutes>,
   oldVersion: string | null,
   newVersion: string,
 ) {
-  const existing = await tx.select().from(routes);
+  const existing = await db.select().from(routes);
   const existingMap = new Map(existing.map((r) => [r.id, r]));
   const newMap = new Map(newRows.map((r) => [r.id, r]));
 
@@ -154,30 +140,30 @@ async function syncRoutes(
   for (const [id, row] of newMap) {
     const old = existingMap.get(id);
     if (!old) {
-      await tx.insert(routes).values(row);
+      await db.insert(routes).values(row);
       audit.added(id, row);
     } else if (rowChanged(old, row)) {
-      await tx.update(routes).set(row).where(eq(routes.id, id));
+      await db.update(routes).set(row).where(eq(routes.id, id));
       audit.modified(id, old, row);
     }
   }
   for (const [id, old] of existingMap) {
     if (!newMap.has(id)) {
-      await tx.delete(routes).where(eq(routes.id, id));
+      await db.delete(routes).where(eq(routes.id, id));
       audit.removed(id, old);
     }
   }
 
-  await writeAudit(tx, audit, "routes", oldVersion, newVersion);
+  await writeAudit(db, audit, "routes", oldVersion, newVersion);
 }
 
 async function syncStops(
-  tx: Tx,
+  db: Db,
   newRows: ReturnType<typeof extractStops>,
   oldVersion: string | null,
   newVersion: string,
 ) {
-  const existing = await tx.select().from(stops);
+  const existing = await db.select().from(stops);
   const existingMap = new Map(existing.map((r) => [r.id, r]));
   const newMap = new Map(newRows.map((r) => [r.id, r]));
 
@@ -186,30 +172,30 @@ async function syncStops(
   for (const [id, row] of newMap) {
     const old = existingMap.get(id);
     if (!old) {
-      await tx.insert(stops).values(row);
+      await db.insert(stops).values(row);
       audit.added(id, row);
     } else if (rowChanged(old, row)) {
-      await tx.update(stops).set(row).where(eq(stops.id, id));
+      await db.update(stops).set(row).where(eq(stops.id, id));
       audit.modified(id, old, row);
     }
   }
   for (const [id, old] of existingMap) {
     if (!newMap.has(id)) {
-      await tx.delete(stops).where(eq(stops.id, id));
+      await db.delete(stops).where(eq(stops.id, id));
       audit.removed(id, old);
     }
   }
 
-  await writeAudit(tx, audit, "stops", oldVersion, newVersion);
+  await writeAudit(db, audit, "stops", oldVersion, newVersion);
 }
 
 async function syncCalendarTable(
-  tx: Tx,
+  db: Db,
   newRows: ReturnType<typeof extractCalendar>,
   oldVersion: string | null,
   newVersion: string,
 ) {
-  const existing = await tx.select().from(calendar);
+  const existing = await db.select().from(calendar);
   const existingMap = new Map(existing.map((r) => [r.serviceId, r]));
   const newMap = new Map(newRows.map((r) => [r.serviceId, r]));
 
@@ -218,30 +204,30 @@ async function syncCalendarTable(
   for (const [id, row] of newMap) {
     const old = existingMap.get(id);
     if (!old) {
-      await tx.insert(calendar).values(row);
+      await db.insert(calendar).values(row);
       audit.added(id, row);
     } else if (rowChanged(old, row)) {
-      await tx.update(calendar).set(row).where(eq(calendar.serviceId, id));
+      await db.update(calendar).set(row).where(eq(calendar.serviceId, id));
       audit.modified(id, old, row);
     }
   }
   for (const [id, old] of existingMap) {
     if (!newMap.has(id)) {
-      await tx.delete(calendar).where(eq(calendar.serviceId, id));
+      await db.delete(calendar).where(eq(calendar.serviceId, id));
       audit.removed(id, old);
     }
   }
 
-  await writeAudit(tx, audit, "calendar", oldVersion, newVersion);
+  await writeAudit(db, audit, "calendar", oldVersion, newVersion);
 }
 
 async function syncTrips(
-  tx: Tx,
+  db: Db,
   newRows: ReturnType<typeof extractTrips>,
   oldVersion: string | null,
   newVersion: string,
 ) {
-  const existing = await tx.select().from(trips);
+  const existing = await db.select().from(trips);
   const existingMap = new Map(existing.map((r) => [r.id, r]));
   const newMap = new Map(newRows.map((r) => [r.id, r]));
 
@@ -250,37 +236,37 @@ async function syncTrips(
   for (const [id, row] of newMap) {
     const old = existingMap.get(id);
     if (!old) {
-      await tx.insert(trips).values(row);
+      await db.insert(trips).values(row);
       audit.added(id, row);
     } else if (rowChanged(old, row)) {
-      await tx.update(trips).set(row).where(eq(trips.id, id));
+      await db.update(trips).set(row).where(eq(trips.id, id));
       audit.modified(id, old, row);
     }
   }
   for (const [id, old] of existingMap) {
     if (!newMap.has(id)) {
-      await tx.delete(trips).where(eq(trips.id, id));
+      await db.delete(trips).where(eq(trips.id, id));
       audit.removed(id, old);
     }
   }
 
   // Trips is a medium table (~2700 rows), only store counts
-  await writeAudit(tx, audit, "trips", oldVersion, newVersion, false);
+  await writeAudit(db, audit, "trips", oldVersion, newVersion, false);
 }
 
 // --- Helpers for split delete/insert flow (used when FK order matters) ---
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteAll(tx: Tx, table: any): Promise<number> {
-  const [{ count }] = await tx
+async function deleteAll(db: Db, table: any): Promise<number> {
+  const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(table);
-  await tx.delete(table);
+  await db.delete(table);
   return Number(count);
 }
 
 async function batchInsert<T extends Record<string, unknown>>(
-  tx: Tx,
+  db: Db,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table: any,
   rows: T[],
@@ -289,19 +275,19 @@ async function batchInsert<T extends Record<string, unknown>>(
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await tx.insert(table).values(batch as any);
+    await db.insert(table).values(batch as any);
   }
 }
 
 async function writeDeleteAndReinsertAudit(
-  tx: Tx,
+  db: Db,
   tableName: string,
   oldCount: number,
   newCount: number,
   oldVersion: string | null,
   newVersion: string,
 ) {
-  await tx.insert(gtfsStaticAuditLog).values({
+  await db.insert(gtfsStaticAuditLog).values({
     feedVersionOld: oldVersion,
     feedVersionNew: newVersion,
     tableName,
@@ -315,7 +301,7 @@ async function writeDeleteAndReinsertAudit(
 // --- Delete-and-reinsert for large or non-PK tables ---
 
 async function deleteAndReinsert<T extends Record<string, unknown>>(
-  tx: Tx,
+  db: Db,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table: any,
   newRows: T[],
@@ -323,20 +309,20 @@ async function deleteAndReinsert<T extends Record<string, unknown>>(
   oldVersion: string | null,
   newVersion: string,
 ) {
-  const [{ count: oldCount }] = await tx
+  const [{ count: oldCount }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(table);
 
-  await tx.delete(table);
+  await db.delete(table);
 
   const BATCH_SIZE = 1000;
   for (let i = 0; i < newRows.length; i += BATCH_SIZE) {
     const batch = newRows.slice(i, i + BATCH_SIZE);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await tx.insert(table).values(batch as any);
+    await db.insert(table).values(batch as any);
   }
 
-  await tx.insert(gtfsStaticAuditLog).values({
+  await db.insert(gtfsStaticAuditLog).values({
     feedVersionOld: oldVersion,
     feedVersionNew: newVersion,
     tableName,
@@ -396,7 +382,7 @@ function createAuditTracker() {
 }
 
 async function writeAudit(
-  tx: Tx,
+  db: Db,
   audit: ReturnType<typeof createAuditTracker>,
   tableName: string,
   oldVersion: string | null,
@@ -405,7 +391,7 @@ async function writeAudit(
 ) {
   if (!audit.hasChanges) return;
 
-  await tx.insert(gtfsStaticAuditLog).values({
+  await db.insert(gtfsStaticAuditLog).values({
     feedVersionOld: oldVersion,
     feedVersionNew: newVersion,
     tableName,

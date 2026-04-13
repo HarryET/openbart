@@ -91,7 +91,7 @@ async function handleNewAlert(
       createdAt: now,
       updatedAt: now,
     })
-    .returning({ id: alerts.id });
+    .$returningId();
 
   await insertInformedEntities(db, inserted.id, informedEntities);
   await insertVersion(db, inserted.id, content, informedEntities, now);

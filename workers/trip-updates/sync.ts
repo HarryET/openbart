@@ -25,7 +25,7 @@ export async function syncTripUpdates(
           feedTimestamp: content.feedTimestamp,
           snapshotTime: now,
         })
-        .returning({ id: tripUpdateSnapshots.id });
+        .$returningId();
 
       if (stopUpdates.length > 0) {
         await tx.insert(stopTimeUpdates).values(
