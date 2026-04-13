@@ -7,10 +7,13 @@ export type FeedAlert = GtfsRealtimeBindings.transit_realtime.IAlert;
 const BART_GTFS_ALERTS = "https://api.bart.gov/gtfsrt/alerts.aspx";
 
 export async function fetchAlertFeed(): Promise<Map<string, FeedAlert>> {
-  const response = await fetch(BART_GTFS_ALERTS);
+  const response = await fetch(BART_GTFS_ALERTS, {
+    headers: { "User-Agent": "openbart/1.0" },
+  });
   if (!response.ok) {
+    const headers = Object.fromEntries(response.headers.entries());
     throw new Error(
-      `BART alerts API returned ${response.status}: ${response.statusText}`,
+      `BART alerts API returned ${response.status}: ${response.statusText}\n${JSON.stringify(headers)}`,
     );
   }
   const buffer = await response.arrayBuffer();

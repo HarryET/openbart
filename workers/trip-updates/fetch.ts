@@ -9,10 +9,13 @@ const BART_GTFS_TRIP_UPDATES = "https://api.bart.gov/gtfsrt/tripupdate.aspx";
 export async function fetchTripUpdateFeed(): Promise<
   Map<string, FeedTripUpdate>
 > {
-  const response = await fetch(BART_GTFS_TRIP_UPDATES);
+  const response = await fetch(BART_GTFS_TRIP_UPDATES, {
+    headers: { "User-Agent": "openbart/1.0" },
+  });
   if (!response.ok) {
+    const headers = Object.fromEntries(response.headers.entries());
     throw new Error(
-      `BART trip updates API returned ${response.status}: ${response.statusText}`,
+      `BART trip updates API returned ${response.status}: ${response.statusText}\n${JSON.stringify(headers)}`,
     );
   }
   const buffer = await response.arrayBuffer();
