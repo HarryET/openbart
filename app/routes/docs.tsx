@@ -61,14 +61,35 @@ const SECTIONS: Section[] = [
       },
       {
         method: "GET",
+        path: "/api/v1/stops/:id/arrivals",
+        summary: "next N arrivals at a stop (sorted by arrival time), with route info and real-time delays overlaid",
+        params: [{ name: "id", type: "string", description: "stop id", required: true }],
+        query: [
+          { name: "limit", type: "integer", description: "number of upcoming arrivals (default 10, max 50)" },
+          { name: "route_id", type: "string", description: "filter by route id" },
+        ],
+        returns: "{ stopId, date, arrivals: [{ tripId, routeId, route, headsign, directionId, stopId, platformCode, stopSequence, arrivalTime, departureTime, realtime: { delay, uncertainty, predictedArrivalUnix } | null }] }",
+      },
+      {
+        method: "GET",
         path: "/api/v1/stops/:id/departures",
-        summary: "next N departures from a stop, with real-time delays overlaid",
+        summary: "next N departures from a stop, with route info and real-time delays overlaid",
         params: [{ name: "id", type: "string", description: "stop id", required: true }],
         query: [
           { name: "limit", type: "integer", description: "number of upcoming departures (default 10, max 50)" },
           { name: "route_id", type: "string", description: "filter by route id" },
         ],
-        returns: "{ stopId, date, departures: [{ tripId, routeId, headsign, directionId, stopSequence, arrivalTime, departureTime, realtime: { delay, uncertainty } | null }] }",
+        returns: "{ stopId, date, departures: [{ tripId, routeId, route, headsign, directionId, stopId, platformCode, stopSequence, arrivalTime, departureTime, realtime: { delay, uncertainty, predictedDepartureUnix } | null }] }",
+      },
+      {
+        method: "GET",
+        path: "/api/v1/stops/:id/history",
+        summary: "on-time performance for a station over the last N days",
+        params: [{ name: "id", type: "string", description: "stop id", required: true }],
+        query: [
+          { name: "days", type: "integer", description: "window size in days (1–30, default 7)" },
+        ],
+        returns: "{ stopId, days, totalSamples, onTimePct, avgDelaySec, worstDelaySec, majorDelayCount }",
       },
       {
         method: "GET",
