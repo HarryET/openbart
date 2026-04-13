@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openbart",
+  "compatibility_date": "2025-04-04",
+  "main": "./workers/app.ts",
+  "vars": {
+    "IS_SVG_ENABLED": false,
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "upload_source_maps": true,
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "openbart.com/*",
+      "zone_name": "openbart.com",
+    },
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "c6abb18f50e1497ab3b3664f99986266",
+      "localConnectionString": "postgresql://postgres:password@localhost:5432/openbart",
+    },
+  ],
+  "placement": { "mode": "smart" },
+  "triggers": {
+    "crons": ["* * * * *", "15 7 * * *"],
+  },
+}
