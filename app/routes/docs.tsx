@@ -372,12 +372,14 @@ X-RateLimit-Reset:     <unix timestamp when the window resets>`}
             need a higher limit, or want another transit agency indexed alongside BART?{" "}
             reach out to{" "}
             <a
-              href="mailto:hello@openbart.com"
+              href="https://x.com/theharryet"
+              target="_blank"
+              rel="noopener noreferrer"
               className="underline hover:bg-black hover:text-white"
             >
-              hello@openbart.com
-            </a>
-            .
+              @theharryet
+            </a>{" "}
+            on twitter.
           </p>
         </section>
 
