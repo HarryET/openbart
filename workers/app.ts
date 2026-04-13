@@ -1,5 +1,6 @@
 import { createRequestHandler } from "react-router";
 import { generateMapSvg } from "~/lib/generate-map-svg";
+import { api } from "./api/app";
 import { syncDataCron, syncStaticGtfsCron } from "./sync-data";
 
 declare module "react-router" {
@@ -27,6 +28,10 @@ export default {
           "Cache-Control": "public, max-age=3600",
         },
       });
+    }
+
+    if (url.pathname.startsWith("/api/v1/")) {
+      return api.fetch(request, env, ctx);
     }
 
     return requestHandler(request, {

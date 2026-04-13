@@ -229,3 +229,23 @@ export const alertVersions = mysqlTable("alert_versions", {
   informedEntities: json("informed_entities").$type<InformedEntitySnapshot[]>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// --- API Keys ---
+
+export const apiKeys = mysqlTable(
+  "api_keys",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    keyHash: varchar("key_hash", { length: 64 }).notNull().unique(),
+    keyPrefix: varchar("key_prefix", { length: 12 }).notNull(),
+    ownerName: varchar("owner_name", { length: 255 }).notNull(),
+    ownerEmail: varchar("owner_email", { length: 255 }),
+    rateLimitPerMinute: int("rate_limit_per_minute").notNull().default(300),
+    isActive: int("is_active").notNull().default(1),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+  },
+  (table) => [index("idx_api_keys_hash").on(table.keyHash)],
+);
+
+export type ApiKeyRow = typeof apiKeys.$inferSelect;

@@ -24,6 +24,12 @@
       "localConnectionString": "mysql://root:password@localhost:3306/openbart",
     },
   ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "e872582783a14090b03402d79ae985b2",
+    },
+  ],
   "placement": { "mode": "smart" },
   "triggers": {
     "crons": ["* * * * *", "15 7 * * *"],

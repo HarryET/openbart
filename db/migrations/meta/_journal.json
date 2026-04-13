@@ -8,6 +8,13 @@
       "when": 1776043999219,
       "tag": "0000_nasty_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1776046253575,
+      "tag": "0001_light_stingray",
+      "breakpoints": true
     }
   ]
 }
