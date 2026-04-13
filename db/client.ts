@@ -3,6 +3,13 @@ import mysql from "mysql2/promise";
 import * as schema from "./schema";
 
 export function createDb(env: Env) {
-  const pool = mysql.createPool({ uri: env.HYPERDRIVE.connectionString });
-  return drizzle(pool, { schema, mode: "default" });
+  const connection = mysql.createPool({
+    host: env.HYPERDRIVE.host,
+    user: env.HYPERDRIVE.user,
+    password: env.HYPERDRIVE.password,
+    database: env.HYPERDRIVE.database,
+    port: env.HYPERDRIVE.port,
+    disableEval: true,
+  });
+  return drizzle(connection, { schema, mode: "default" });
 }
