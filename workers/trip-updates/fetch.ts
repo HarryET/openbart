@@ -10,6 +10,11 @@ export async function fetchTripUpdateFeed(): Promise<
   Map<string, FeedTripUpdate>
 > {
   const response = await fetch(BART_GTFS_TRIP_UPDATES);
+  if (!response.ok) {
+    throw new Error(
+      `BART trip updates API returned ${response.status}: ${response.statusText}`,
+    );
+  }
   const buffer = await response.arrayBuffer();
   const feed = transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
 

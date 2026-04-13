@@ -8,6 +8,11 @@ const BART_GTFS_ALERTS = "https://api.bart.gov/gtfsrt/alerts.aspx";
 
 export async function fetchAlertFeed(): Promise<Map<string, FeedAlert>> {
   const response = await fetch(BART_GTFS_ALERTS);
+  if (!response.ok) {
+    throw new Error(
+      `BART alerts API returned ${response.status}: ${response.statusText}`,
+    );
+  }
   const buffer = await response.arrayBuffer();
   const feed = transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
 
