@@ -170,10 +170,10 @@ export default function StatusPage() {
         </span>
         <div className="flex gap-2">
           <a
-            href="/status"
+            href="/home"
             className="hover:cursor-pointer hover:bg-black hover:text-white"
           >
-            status
+            home
           </a>
           <a
             href="/docs"
