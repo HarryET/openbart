@@ -27,4 +27,5 @@ jobs:
       - name: Run migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
         run: npx drizzle-kit migrate
