@@ -88,12 +88,10 @@ export default function Home() {
         </span>
         <div className="flex gap-2">
           <a
-            href="https://github.com/harryet/openbart"
+            href="/status"
             className="hover:cursor-pointer hover:bg-black hover:text-white"
-            target="_blank"
-            rel="noopener noreferrer"
           >
-            github
+            status
           </a>
           <a
             href="/docs"

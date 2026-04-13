@@ -6,6 +6,7 @@ import { rateLimit } from "./middleware/rate-limit";
 import { alertRoutes } from "./routes/alerts";
 import { realtimeRoutes } from "./routes/realtime";
 import { routeRoutes } from "./routes/routes";
+import { statusRoutes } from "./routes/status";
 import { stopRoutes } from "./routes/stops";
 import { systemRoutes } from "./routes/system";
 import { tripRoutes } from "./routes/trips";
@@ -31,6 +32,7 @@ api.route("/trips", tripRoutes);
 api.route("/realtime", realtimeRoutes);
 api.route("/alerts", alertRoutes);
 api.route("/", systemRoutes);
+api.route("/", statusRoutes);
 
 api.notFound((c) => errorResponse(c, "NOT_FOUND", `Route ${c.req.method} ${c.req.path} not found`));
 

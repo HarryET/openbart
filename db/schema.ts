@@ -230,6 +230,29 @@ export const alertVersions = mysqlTable("alert_versions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// --- Status Rollup Tables ---
+
+// Hourly rollup of per-line on-time performance and delay metrics.
+// Populated by the per-minute cron (recomputes the current hour idempotently).
+// Read by /api/v1/status/* to render uptime bars and nines of reliability.
+export const lineStatusHourly = mysqlTable(
+  "line_status_hourly",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    routeColor: varchar("route_color", { length: 20 }).notNull(),
+    hour: timestamp("hour").notNull(),
+    totalStops: int("total_stops").notNull().default(0),
+    delaySum: int("delay_sum").notNull().default(0),
+    onTimeCount: int("on_time_count").notNull().default(0),
+    maxDelay: int("max_delay").notNull().default(0),
+    snapshotCount: int("snapshot_count").notNull().default(0),
+  },
+  (table) => [
+    index("idx_lsh_color_hour").on(table.routeColor, table.hour),
+    index("idx_lsh_hour").on(table.hour),
+  ],
+);
+
 // --- API Keys ---
 
 export const apiKeys = mysqlTable(

@@ -4,6 +4,7 @@ import { syncAlerts } from "./alerts/sync";
 import { fetchTripUpdateFeed } from "./trip-updates/fetch";
 import { syncTripUpdates } from "./trip-updates/sync";
 import { syncStaticGtfs } from "./gtfs-static/sync";
+import { syncHourlyRollup } from "./rollup/sync";
 
 export const syncDataCron = async (env: Env, _ctx: ExecutionContext) => {
   const db = createDb(env);
@@ -15,6 +16,7 @@ export const syncDataCron = async (env: Env, _ctx: ExecutionContext) => {
 
   await syncAlerts(db, feedAlerts);
   await syncTripUpdates(db, feedTripUpdates);
+  await syncHourlyRollup(db);
 };
 
 export const syncStaticGtfsCron = async (

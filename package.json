@@ -12,6 +12,7 @@
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.99.0",
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.2",
     "gtfs-realtime-bindings": "^1.1.1",
