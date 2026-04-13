@@ -31,7 +31,10 @@ type Db = ReturnType<typeof createDb>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export async function syncStaticGtfs(db: Db) {
+
+  console.log("Fetching GTFS static data...");
   const data = await fetchGtfsStaticData();
+  console.log("Fetched. Parsing feed info...");
 
   const feedInfoRows = extractFeedInfo(data.feedInfo);
   const newVersion = feedInfoRows[0]?.feedVersion;
@@ -44,10 +47,12 @@ export async function syncStaticGtfs(db: Db) {
     .limit(1);
 
   if (currentFeed?.feedVersion === newVersion) {
+    console.log(`Feed version ${newVersion} already up to date, skipping.`);
     return;
   }
 
   const oldVersion = currentFeed?.feedVersion ?? null;
+  console.log(`Upgrading feed: ${oldVersion ?? "(empty)"} → ${newVersion}`);
 
   await db.transaction(async (tx) => {
     // Order matters: respect FK dependencies
@@ -56,34 +61,46 @@ export async function syncStaticGtfs(db: Db) {
     //           stop_times → stops
     //
     // 1. Root tables (no FK parents)
+    console.log("Syncing agencies...");
     await syncAgencies(tx, extractAgencies(data.agency), oldVersion, newVersion);
+    console.log("Syncing calendar...");
     await syncCalendarTable(tx, extractCalendar(data.calendar), oldVersion, newVersion);
 
     // 2. Tables depending on agencies
+    console.log("Syncing routes...");
     await syncRoutes(tx, extractRoutes(data.routes), oldVersion, newVersion);
 
     // 3. Stops (root table, no FK parents)
+    console.log("Syncing stops...");
     await syncStops(tx, extractStops(data.stops), oldVersion, newVersion);
 
     // 4. Delete stop_times first (FK child of trips + stops)
     const stopTimesData = extractStopTimes(data.stopTimes);
+    console.log(`Clearing stop_times...`);
     const stopTimesOldCount = await deleteAll(tx, stopTimes);
 
     // 5. Sync trips (FK → routes). Safe now that stop_times is empty.
+    console.log("Syncing trips...");
     await syncTrips(tx, extractTrips(data.trips), oldVersion, newVersion);
 
     // 6. Reinsert stop_times (parents trips + stops now stable)
+    console.log(`Inserting ${stopTimesData.length} stop_times...`);
     await batchInsert(tx, stopTimes, stopTimesData);
     await writeDeleteAndReinsertAudit(tx, "stop_times", stopTimesOldCount, stopTimesData.length, oldVersion, newVersion);
 
     // 7. Shapes — no FK deps, delete and reinsert
-    await deleteAndReinsert(tx, shapes, extractShapes(data.shapes), "shapes", oldVersion, newVersion);
+    const shapesData = extractShapes(data.shapes);
+    console.log(`Syncing shapes (${shapesData.length} rows)...`);
+    await deleteAndReinsert(tx, shapes, shapesData, "shapes", oldVersion, newVersion);
 
     // 8. Tables without natural PK — delete and reinsert
+    console.log("Syncing calendar_dates...");
     await deleteAndReinsert(tx, calendarDates, extractCalendarDates(data.calendarDates), "calendar_dates", oldVersion, newVersion);
+    console.log("Syncing transfers...");
     await deleteAndReinsert(tx, transfers, extractTransfers(data.transfers), "transfers", oldVersion, newVersion);
 
     // 9. Record new feed version
+    console.log("Recording feed version...");
     await tx.insert(feedInfo).values(feedInfoRows[0]);
   });
 }
